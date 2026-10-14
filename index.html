@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>학력평가 시간표 교체</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <style>
 :root{--bg:#f6f7f9;--card:#fff;--ink:#1d2433;--muted:#6b7280;--line:#e3e6eb;--accent:#2f6fde;--ok:#16a34a;--okbg:#e8f7ee;--no:#dc2626;--nobg:#fdecec;--hl:#fff4c2;--new:#dcfce7;--rm:#f3f4f6;--room:#f4f1ff}
 *{box-sizing:border-box}
@@ -51,6 +51,7 @@ table.tt th.exam{background:var(--hl)}
 table.tt td.busy{background:#eef3ff}
 table.tt td.new{background:var(--new)}
 table.tt td.rm{background:var(--rm);color:#9ca3af}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
 table.tt td.target{outline:3px solid #f59e0b;outline-offset:-3px}
 del{color:var(--no)}
 .s{font-weight:bold}
@@ -125,6 +126,8 @@ del{color:var(--no)}
       <label class="muted"><input type="checkbox" id="onlyExam"> 평가 학년만 보기</label>
       <button class="primary" id="printDay">🖨 이 요일 출력</button>
       <button id="printWeek">🖨 월~금 전체 출력</button>
+      <button id="xlsDay">📥 이 요일 엑셀</button>
+      <button id="xlsWeek">📥 월~금 엑셀</button>
     </div>
   </div>
   <div class="legend muted" style="margin-bottom:6px"><span style="background:repeating-linear-gradient(45deg,#fff,#fff 4px,#fdecec 4px,#fdecec 8px)">교과교실 삭제</span><span style="background:#fffbe6">과목명 삭제됨</span><span style="background:var(--new)">교체함</span><span style="background:var(--room)">교과교실</span> 칸을 누르면 선생님을 바꿔 넣을 수 있어요.</div>
@@ -150,6 +153,25 @@ del{color:var(--no)}
   </div>
 </section>
 
+<section class="card need">
+  <div class="row" style="justify-content:space-between;margin-bottom:8px">
+    <h2 style="margin:0" id="multiTitle">⑥ 평가일 선생님 시간표 모아보기</h2>
+    <div class="row">
+      <button class="primary" id="xlsMulti">📥 엑셀로 저장</button>
+      <button id="printMulti">🖨 출력</button>
+    </div>
+  </div>
+  <div class="row" style="margin-bottom:6px">
+    <span class="muted">빠르게 고르기</span>
+    <button class="sm" data-q="rm">교과교실 빠진 선생님</button>
+    <button class="sm" data-q="ch">교체·삭제 있는 선생님</button>
+    <button class="sm" data-q="all">전체</button>
+    <button class="sm" data-q="none">모두 해제</button>
+  </div>
+  <div id="multiPick" style="margin-bottom:10px"></div>
+  <div class="scroll" id="multi"></div>
+</section>
+
 </main>
 
 <div id="modal"><div class="box" id="mbox"></div></div>
@@ -159,7 +181,7 @@ del{color:var(--no)}
 const KEY='examSwap.data.v1', SKEY='examSwap.state.v1';
 // DATA: {file, saved, days:['월',..], periods:{'월':[1..6]}, cols:[{key,g,room,name,label}], cells:{'월|1|201':{s,t}}}
 let DATA=null;
-let S={day:'화',grades:['3'],edits:{},onlyExam:false,subjAll:false};  // edits[요일]['201|3']={s,t}
+let S={day:'화',grades:['3'],edits:{},onlyExam:false,picks:[]};  // edits[요일]['201|3']={s,t}
 let B=null, selT=null, ED=null;
 
 function store(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
@@ -276,7 +298,7 @@ function render(){
   if(!has)return;
   if(!DATA.days.includes(S.day))S.day=DATA.days[0];
   build();
-  drawSettings();drawRemoved();drawGrid();drawTList();drawTView();
+  drawSettings();drawRemoved();drawGrid();drawTList();drawTView();drawMulti();
   if(ED)drawEditor();
 }
 function drawSettings(){
@@ -482,11 +504,113 @@ function printTeachers(list){
 }
 const changedTeachers=()=>allTeachers().filter(n=>B.P.some(p=>{
   const o=baseAt(n,S.day,p),b=busyAt(n,p);
-  return o.length!==b.length||b.some(x=>x.edited||x.delS)||(o.length&&o[0].col.key!==b[0].col.key);
+  return o.length!==b.length||b.some(x=>x.edited)||(o.length&&o[0].col.key!==b[0].col.key);
 }));
 $('printOne').onclick=()=>selT?printTeachers([selT]):alert('선생님을 먼저 고르세요.');
 $('printChanged').onclick=()=>printTeachers(changedTeachers());
 $('printAll').onclick=()=>printTeachers(allTeachers());
+
+// ---------- ⑥ 평가일 모아보기 ----------
+// 선생님 n의 평가일 p교시 → {text, kind: busy|new|rm|''}
+function dayCell(n,p){
+  const now=busyAt(n,p),o=baseAt(n,S.day,p);
+  if(now.length){
+    const changed=now.some(x=>x.edited)||!o.length||o[0].col.key!==now[0].col.key;
+    return {text:now.map(x=>[where(x),x.s].filter(Boolean).join('\n')).join(' / ')+(changed?'\n(교체)':''),kind:changed?'new':'busy'};
+  }
+  if(o.length)return {text:'삭제\n'+o.map(x=>where(x)).join(', '),kind:'rm'};
+  return {text:'',kind:''};
+}
+const picked=()=>allTeachers().filter(n=>(S.picks||[]).includes(n));
+function multiHTML(){
+  const list=picked();
+  if(!list.length)return '<div class="empty">위에서 선생님을 고르세요.</div>';
+  return `<table class="tt"><tr><th style="width:80px">선생님</th>${B.P.map(p=>`<th>${p}교시</th>`).join('')}<th style="width:70px">시간 수</th></tr>`+
+    list.map(n=>`<tr><th>${esc(n)}</th>${B.P.map(p=>{const c=dayCell(n,p);
+      return `<td class="${c.kind}">${esc(c.text).replace(/\n/g,'<br>')}</td>`}).join('')}<td>${origHours(n)}→${examHours(n)}</td></tr>`).join('')+'</table>';
+}
+function drawMulti(){
+  $('multiTitle').textContent=`⑥ ${S.day}요일(평가일) 선생님 시간표 모아보기`;
+  const sel=new Set(S.picks||[]);
+  $('multiPick').innerHTML=allTeachers().map(n=>`<span class="chip ${sel.has(n)?'on':''}" data-n="${esc(n)}">${esc(n)}</span>`).join('');
+  $('multiPick').querySelectorAll('.chip').forEach(c=>c.onclick=()=>{
+    const n=c.dataset.n;S.picks=sel.has(n)?S.picks.filter(x=>x!==n):[...(S.picks||[]),n];save();drawMulti();});
+  $('multi').innerHTML=multiHTML();
+}
+document.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{
+  const q=b.dataset.q;
+  S.picks=q==='rm'?[...new Set(B.displaced.map(r=>r.name))]:q==='ch'?changedTeachers():q==='all'?allTeachers():[];
+  save();drawMulti();});
+$('printMulti').onclick=()=>picked().length?doPrint(`<h3 style="margin:0 0 6px">${S.day}요일 선생님 시간표 <span style="font-size:12px;font-weight:normal">(${examNote()})</span></h3>${multiHTML()}`,true):alert('선생님을 먼저 고르세요.');
+
+// ---------- 엑셀 저장 ----------
+const BD={style:'thin',color:{rgb:'999999'}};
+const xst=(o={})=>{
+  const r={font:{name:'맑은 고딕',sz:o.sz||9,bold:!!o.bold},alignment:{wrapText:true,vertical:'center',horizontal:o.left?'left':'center'}};
+  if(o.color)r.font.color={rgb:o.color};
+  if(!o.noBorder)r.border={top:BD,bottom:BD,left:BD,right:BD};
+  if(o.fill)r.fill={patternType:'solid',fgColor:{rgb:o.fill}};
+  return r;
+};
+function sheetFrom(aoa,styleAt,merges,widths,heights){
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  aoa.forEach((r,i)=>r.forEach((v,j)=>{const a=XLSX.utils.encode_cell({r:i,c:j});if(!ws[a])ws[a]={t:'s',v:''};ws[a].s=styleAt(i,j);}));
+  ws['!merges']=merges;ws['!cols']=widths.map(w=>({wch:w}));ws['!rows']=heights;
+  return ws;
+}
+function exportGrid(dayList){
+  const cols=DATA.cols.filter(c=>!S.onlyExam||S.grades.includes(c.g));
+  const gs=[...new Set(cols.map(c=>c.g))];
+  const W=cols.length+2;
+  const aoa=[[`전체시간표 (${examNote()} 반영)`,...Array(W-1).fill('')],['요일','교시'],['','']];
+  const merges=[{s:{r:0,c:0},e:{r:0,c:W-1}},{s:{r:1,c:0},e:{r:2,c:0}},{s:{r:1,c:1},e:{r:2,c:1}}];
+  let ci=2;
+  gs.forEach(g=>{const n=cols.filter(c=>c.g===g).length;
+    aoa[1].push(g+'학년'+(S.grades.includes(g)?' (평가)':''),...Array(n-1).fill(''));
+    if(n>1)merges.push({s:{r:1,c:ci},e:{r:1,c:ci+n-1}});ci+=n;});
+  cols.forEach(c=>aoa[2].push(c.name));
+  const edited={};
+  dayList.forEach(d=>{
+    const P=DATA.periods[d];const r0=aoa.length;
+    P.forEach((p,i)=>{
+      const row=[i===0?d:'',p];
+      cols.forEach((col,j)=>{
+        let s='',t='';
+        const c=d===S.day?B.eff[col.key+'|'+p]:null;
+        if(c){if(!(c.flag==='removed'&&!c.edited)){s=c.s;t=c.t;}if(c.edited)edited[aoa.length+'|'+(j+2)]=1;}
+        else{const x=DATA.cells[d+'|'+p+'|'+col.key];if(x){s=x.s;t=x.t;}}
+        row.push(s||t?s+'\n'+t:'');
+      });
+      aoa.push(row);
+    });
+    if(P.length>1)merges.push({s:{r:r0,c:0},e:{r:r0+P.length-1,c:0}});
+  });
+  const ws=sheetFrom(aoa,(i,j)=>{
+      if(i===0)return xst({sz:13,bold:true,noBorder:true,left:true});
+      if(i<=2||j<2)return xst({bold:true,fill:i===2&&cols[j-2]&&cols[j-2].room?'EDE9FE':'F1F3F6'});
+      return xst({fill:edited[i+'|'+j]?'DCFCE7':undefined});
+    },merges,[5,4,...cols.map(()=>7.5)],aoa.map((r,i)=>({hpt:i===0?24:i<=2?18:30})));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'전체시간표');
+  XLSX.writeFile(wb,`전체시간표_${dayList.length===1?dayList[0]+'요일':'월-금'}_학력평가반영.xlsx`);
+}
+$('xlsDay').onclick=()=>exportGrid([S.day]);
+$('xlsWeek').onclick=()=>exportGrid(DATA.days);
+$('xlsMulti').onclick=()=>{
+  const list=picked();if(!list.length){alert('선생님을 먼저 고르세요.');return;}
+  const W=B.P.length+2;
+  const aoa=[[`${S.day}요일 선생님 시간표 (${examNote()})`,...Array(W-1).fill('')],['선생님',...B.P.map(p=>p+'교시'),'시간 수']];
+  const kinds={};
+  list.forEach(n=>{const r=aoa.length;
+    aoa.push([n,...B.P.map((p,j)=>{const c=dayCell(n,p);if(c.kind)kinds[r+'|'+(j+1)]=c.kind;return c.text;}),origHours(n)+'→'+examHours(n)]);});
+  const ws=sheetFrom(aoa,(i,j)=>{
+      if(i===0)return xst({sz:13,bold:true,noBorder:true,left:true});
+      if(i===1||j===0)return xst({bold:true,fill:'F1F3F6'});
+      const k=kinds[i+'|'+j];
+      return xst({fill:k==='new'?'DCFCE7':k==='busy'?'EEF3FF':undefined,color:k==='rm'?'9CA3AF':undefined});
+    },[{s:{r:0,c:0},e:{r:0,c:W-1}}],[10,...B.P.map(()=>13),8],aoa.map((r,i)=>({hpt:i===0?24:i===1?18:32})));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,S.day+'요일 선생님');
+  XLSX.writeFile(wb,`선생님시간표_${S.day}요일_학력평가.xlsx`);
+};
 
 DATA=load(KEY);
 S=Object.assign(S,load(SKEY)||{});
