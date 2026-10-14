@@ -400,10 +400,8 @@ function closeEditor(){ED=null;$('modal').style.display='none';}
 $('modal').onclick=e=>{if(e.target.id==='modal')closeEditor();};
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&ED)closeEditor();});
 function setEdit(key,p,s,t){(S.edits[S.day]=S.edits[S.day]||{})[key+'|'+p]={s,t};save();render();}
-function drawEditor(){
-  const {key,p}=ED;const col=colOf(key);const c=B.eff[key+'|'+p];
-  const before=c.base?`${c.base.s} · ${c.base.t}`:'빈칸';
-  const now=(c.s||c.t)?`${c.s||'(과목 없음)'} · ${c.t||'(교사 없음)'}`:'빈칸';
+function edCtx(){
+  const {key,p}=ED;const c=B.eff[key+'|'+p];
   const rm=new Set(B.displaced.map(r=>r.name));
   const mine=names(c.t);
   const st=n=>{
@@ -411,11 +409,12 @@ function drawEditor(){
     const b=busyAt(n,p);
     return b.length?{k:'no',t:'수업 '+lessonText(b[0])}:{k:'ok',t:'가능'};
   };
-  let list=allTeachers().filter(n=>!ED.q||n.includes(ED.q));
-  if(ED.onlyRm)list=list.filter(n=>rm.has(n));
-  if(ED.onlyFree)list=list.filter(n=>st(n).k!=='no');
-  list.sort((a,b)=>(rm.has(b)-rm.has(a))||a.localeCompare(b,'ko'));
-  const pick=ED.pick;
+  return {key,p,c,rm,st};
+}
+function drawEditor(){
+  const {key,p,c}=edCtx();const col=colOf(key);
+  const before=c.base?`${c.base.s} · ${c.base.t}`:'빈칸';
+  const now=(c.s||c.t)?`${c.s||'(과목 없음)'} · ${c.t||'(교사 없음)'}`:'빈칸';
   $('mbox').innerHTML=`
     <div class="row" style="justify-content:space-between"><h2 style="margin:0">${esc(col.label)} · ${S.day}요일 ${p}교시</h2><button id="mx">닫기 ✕</button></div>
     <p style="margin:8px 0">원래: <b>${esc(before)}</b><br>지금: <b>${esc(now)}</b>${c.edited?' <span class="badge ok">교체함</span>':c.flag==='removed'?' <span class="badge no">교과교실 삭제</span>':c.flag==='subjDel'?' <span class="badge no">과목명 삭제</span>':''}</p>
@@ -431,23 +430,35 @@ function drawEditor(){
         <input type="search" id="mq" placeholder="선생님 검색" value="${esc(ED.q)}" style="width:100%;margin-bottom:6px">
         <label class="muted"><input type="checkbox" id="mfree" ${ED.onlyFree?'checked':''}> 이 시간 가능한 선생님만</label><br>
         <label class="muted"><input type="checkbox" id="mrm" ${ED.onlyRm?'checked':''}> 교과교실 삭제된 선생님만</label>
-        <div class="tlist" style="margin-top:6px">${list.map(n=>{const s=st(n);
-          return `<div class="titem ${n===pick?'sel':''}" data-n="${esc(n)}"><span>${esc(n)}${rm.has(n)?' <span class="muted">·교과교실</span>':''}<br><span class="badge ${s.k}">${esc(s.t)}</span></span>
-            <button class="sm put" data-n="${esc(n)}" ${s.k==='me'?'disabled':''}>넣기</button></div>`}).join('')||'<div class="empty">없어요.</div>'}</div>
+        <div class="tlist" id="mlist" style="margin-top:6px"></div>
       </div>
-      <div>${pick?`<div class="row" style="justify-content:space-between;margin-bottom:6px"><b>${esc(pick)} 선생님 시간표</b><span class="muted">노란 테두리 = 이 칸 시간 · ${S.day} ${origHours(pick)}→${examHours(pick)}시간</span></div>${personalHTML(pick,{p})}
-        <div style="margin-top:8px">${st(pick).k==='ok'?`<button class="primary put" data-n="${esc(pick)}">${esc(pick)} 선생님을 이 칸에 넣기</button>`:st(pick).k==='no'?'<span class="badge no">이 시간에 수업이 있어요</span>':''}</div>`
-        :'<div class="empty">왼쪽에서 선생님 이름을 누르면 개인 시간표가 보여요.</div>'}</div>
+      <div id="mpick"></div>
     </div>`;
   $('mx').onclick=closeEditor;
-  $('mq').oninput=e=>{ED.q=e.target.value;drawEditor();const i=$('mq');i.focus();i.setSelectionRange(i.value.length,i.value.length);};
-  $('mfree').onchange=e=>{ED.onlyFree=e.target.checked;drawEditor();};
-  $('mrm').onchange=e=>{ED.onlyRm=e.target.checked;drawEditor();};
+  // 검색은 목록만 다시 그려서 한글 입력(받침 조합)이 끊기지 않게
+  $('mq').oninput=e=>{ED.q=e.target.value;drawMList();};
+  $('mfree').onchange=e=>{ED.onlyFree=e.target.checked;drawMList();};
+  $('mrm').onchange=e=>{ED.onlyRm=e.target.checked;drawMList();};
   $('msave').onclick=()=>setEdit(key,p,$('mlabel').value.trim(),c.t);
   $('mnoT').onclick=()=>setEdit(key,p,$('mlabel').value.trim(),'');
   $('mclear').onclick=()=>setEdit(key,p,'','');
   if($('mundo'))$('mundo').onclick=()=>{delete S.edits[S.day][key+'|'+p];save();render();};
-  $('mbox').querySelectorAll('.titem').forEach(el=>el.onclick=e=>{if(e.target.closest('button'))return;ED.pick=el.dataset.n;drawEditor();});
+  drawMList();
+}
+function drawMList(){
+  const {key,p,rm,st}=edCtx();
+  let list=allTeachers().filter(n=>!ED.q||n.includes(ED.q));
+  if(ED.onlyRm)list=list.filter(n=>rm.has(n));
+  if(ED.onlyFree)list=list.filter(n=>st(n).k!=='no');
+  list.sort((a,b)=>(rm.has(b)-rm.has(a))||a.localeCompare(b,'ko'));
+  const pick=ED.pick;
+  $('mlist').innerHTML=list.map(n=>{const s=st(n);
+    return `<div class="titem ${n===pick?'sel':''}" data-n="${esc(n)}"><span>${esc(n)}${rm.has(n)?' <span class="muted">·교과교실</span>':''}<br><span class="badge ${s.k}">${esc(s.t)}</span></span>
+      <button class="sm put" data-n="${esc(n)}" ${s.k==='me'?'disabled':''}>넣기</button></div>`}).join('')||'<div class="empty">없어요.</div>';
+  $('mpick').innerHTML=pick?`<div class="row" style="justify-content:space-between;margin-bottom:6px"><b>${esc(pick)} 선생님 시간표</b><span class="muted">노란 테두리 = 이 칸 시간 · ${S.day} ${origHours(pick)}→${examHours(pick)}시간</span></div>${personalHTML(pick,{p})}
+    <div style="margin-top:8px">${st(pick).k==='ok'?`<button class="primary put" data-n="${esc(pick)}">${esc(pick)} 선생님을 이 칸에 넣기</button>`:st(pick).k==='no'?'<span class="badge no">이 시간에 수업이 있어요</span>':''}</div>`
+    :'<div class="empty">왼쪽에서 선생님 이름을 누르면 개인 시간표가 보여요.</div>';
+  $('mlist').querySelectorAll('.titem').forEach(el=>el.onclick=e=>{if(e.target.closest('button'))return;ED.pick=el.dataset.n;drawMList();});
   $('mbox').querySelectorAll('.put').forEach(b=>b.onclick=()=>{
     const n=b.dataset.n;const busy=busyAt(n,p);
     if(busy.length&&!confirm(`${n} 선생님은 이 시간에 ${lessonText(busy[0])} 수업이 있어요. 그래도 넣을까요?`))return;
