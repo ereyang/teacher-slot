@@ -158,7 +158,8 @@ del{color:var(--no)}
   <div class="row" style="justify-content:space-between;margin-bottom:8px">
     <h2 style="margin:0" id="multiTitle">⑥ 평가일 선생님 시간표 모아보기</h2>
     <div class="row">
-      <button class="primary" id="xlsMulti">📥 엑셀로 저장</button>
+      <button class="primary" id="xlsBoth">📥 전체+개인 한 파일로</button>
+      <button id="xlsMulti">📥 개인만 엑셀</button>
       <button id="printMulti">🖨 출력</button>
     </div>
   </div>
@@ -381,7 +382,7 @@ const maxP=()=>Math.max(...DATA.days.map(d=>Math.max(...DATA.periods[d])));
 function personalHTML(n,target){
   const PP=Array.from({length:maxP()},(_,i)=>i+1);
   const cnt=d=>d===S.day?examHours(n):DATA.periods[d].filter(p=>baseAt(n,d,p).length).length;
-  let h=`<table class="tt"><tr><th style="width:40px"></th>${DATA.days.map(d=>`<th class="${d===S.day?'exam':''}">${d}${d===S.day?' (평가)':''}<br><span class="muted">${cnt(d)}시간</span></th>`).join('')}</tr>`;
+  let h=`<table class="tt"><tr><th style="width:40px"></th>${DATA.days.map(d=>`<th class="${d===S.day?'exam':''}">${d}${d===S.day?' (평가)':''}</th>`).join('')}</tr>`;
   PP.forEach(p=>{
     h+=`<tr><th>${p}</th>`;
     DATA.days.forEach(d=>{
@@ -526,9 +527,9 @@ const picked=()=>allTeachers().filter(n=>(S.picks||[]).includes(n));
 function multiHTML(){
   const list=picked();
   if(!list.length)return '<div class="empty">위에서 선생님을 고르세요.</div>';
-  return `<table class="tt"><tr><th style="width:80px">선생님</th>${B.P.map(p=>`<th>${p}교시</th>`).join('')}<th style="width:70px">시간 수</th></tr>`+
+  return `<table class="tt"><tr><th style="width:80px">선생님</th>${B.P.map(p=>`<th>${p}교시</th>`).join('')}</tr>`+
     list.map(n=>`<tr><th>${esc(n)}</th>${B.P.map(p=>{const c=dayCell(n,p);
-      return `<td class="${c.kind}">${esc(c.text).replace(/\n/g,'<br>')}</td>`}).join('')}<td>${origHours(n)}→${examHours(n)}</td></tr>`).join('')+'</table>';
+      return `<td class="${c.kind}">${esc(c.text).replace(/\n/g,'<br>')}</td>`}).join('')}</tr>`).join('')+'</table>';
 }
 function drawMulti(){
   $('multiTitle').textContent=`⑥ ${S.day}요일(평가일) 선생님 시간표 모아보기`;
@@ -559,7 +560,7 @@ function sheetFrom(aoa,styleAt,merges,widths,heights){
   ws['!merges']=merges;ws['!cols']=widths.map(w=>({wch:w}));ws['!rows']=heights;
   return ws;
 }
-function exportGrid(dayList){
+function gridSheet(dayList){
   // 엑셀에는 교과교실 열을 넣지 않음
   const cols=DATA.cols.filter(c=>!c.room&&(!S.onlyExam||S.grades.includes(c.g)));
   const gs=[...new Set(cols.map(c=>c.g))];
@@ -592,29 +593,42 @@ function exportGrid(dayList){
       if(i<=2||j<2)return xst({bold:true,fill:i===2&&cols[j-2]&&cols[j-2].room?'EDE9FE':'F1F3F6'});
       return xst({fill:edited[i+'|'+j]?'DCFCE7':undefined});
     },merges,[5,4,...cols.map(()=>7.5)],aoa.map((r,i)=>({hpt:i===0?24:i<=2?18:30})));
-  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'전체시간표');
+  return ws;
+}
+function exportGrid(dayList){
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,gridSheet(dayList),'전체시간표');
   XLSX.writeFile(wb,`전체시간표_${dayList.length===1?dayList[0]+'요일':'월-금'}_학력평가반영.xlsx`);
 }
 $('xlsDay').onclick=()=>exportGrid([S.day]);
 $('xlsWeek').onclick=()=>exportGrid(DATA.days);
-$('xlsMulti').onclick=()=>{
-  const list=picked();if(!list.length){alert('선생님을 먼저 고르세요.');return;}
+function multiSheet(list){
   // 행 = 교시, 열 = 선생님
   const W=list.length+1;
   const aoa=[[`${S.day}요일 선생님 시간표 (${examNote()})`,...Array(W-1).fill('')],['교시',...list]];
   const kinds={};
   B.P.forEach(p=>{const r=aoa.length;
     aoa.push([p+'교시',...list.map((n,j)=>{const c=dayCell(n,p);if(c.kind)kinds[r+'|'+(j+1)]=c.kind;return c.text;})]);});
-  aoa.push(['시간 수',...list.map(n=>origHours(n)+'→'+examHours(n))]);
-  const last=aoa.length-1;
+
   const ws=sheetFrom(aoa,(i,j)=>{
       if(i===0)return xst({sz:13,bold:true,noBorder:true,left:true});
-      if(i===1||j===0||i===last)return xst({bold:true,fill:'F1F3F6'});
+      if(i===1||j===0)return xst({bold:true,fill:'F1F3F6'});
       const k=kinds[i+'|'+j];
       return xst({fill:k==='new'?'DCFCE7':k==='busy'?'EEF3FF':undefined,color:k==='rm'?'9CA3AF':undefined});
-    },[{s:{r:0,c:0},e:{r:0,c:Math.max(W-1,1)}}],[8,...list.map(()=>12)],aoa.map((r,i)=>({hpt:i===0?24:i===1||i===last?18:40})));
-  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,S.day+'요일 선생님');
+    },[{s:{r:0,c:0},e:{r:0,c:Math.max(W-1,1)}}],[8,...list.map(()=>12)],aoa.map((r,i)=>({hpt:i===0?24:i===1?18:40})));
+  return ws;
+}
+$('xlsMulti').onclick=()=>{
+  const list=picked();if(!list.length){alert('선생님을 먼저 고르세요.');return;}
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,multiSheet(list),S.day+'요일 선생님');
   XLSX.writeFile(wb,`선생님시간표_${S.day}요일_학력평가.xlsx`);
+};
+// 전체시간표(평가 요일) + 선생님 시간표를 시트 2개로 한 파일에
+$('xlsBoth').onclick=()=>{
+  const list=picked();if(!list.length){alert('선생님을 먼저 고르세요.');return;}
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,gridSheet([S.day]),S.day+'요일 전체시간표');
+  XLSX.utils.book_append_sheet(wb,multiSheet(list),S.day+'요일 선생님');
+  XLSX.writeFile(wb,`학력평가_${S.day}요일_전체+선생님시간표.xlsx`);
 };
 
 DATA=load(KEY);
