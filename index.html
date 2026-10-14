@@ -110,8 +110,7 @@ del{color:var(--no)}
     <span style="margin-left:10px">평가 학년</span><div class="row" id="gradeBox" style="gap:4px"></div>
     <button id="resetAll" class="sm" style="margin-left:auto">교체 내용 모두 초기화</button>
   </div>
-  <p class="muted" style="margin:8px 0 0">평가 학년은 ① <b>교과교실 칸 수업 삭제</b>(그 선생님은 ③에 표시) ② 반 칸의 <b>선택과목명(D2, B3 등) 삭제</b>, 반에 배정된 선생님은 그대로 남아요.</p>
-  <label class="muted"><input type="checkbox" id="subjAll"> 평가 학년은 선택과목 시간이 아니어도 모든 반 칸의 과목명 지우기</label>
+  <p class="muted" style="margin:8px 0 0">평가 학년은 ① <b>교과교실 칸 수업 삭제</b>(그 선생님은 ③에 표시) ② 반 칸의 <b>윗줄 과목명은 모두 자동 삭제</b>, 반에 배정된 선생님은 그대로 남아요.</p>
 </section>
 
 <section class="card need">
@@ -128,7 +127,7 @@ del{color:var(--no)}
       <button id="printWeek">🖨 월~금 전체 출력</button>
     </div>
   </div>
-  <div class="legend muted" style="margin-bottom:6px"><span style="background:repeating-linear-gradient(45deg,#fff,#fff 4px,#fdecec 4px,#fdecec 8px)">교과교실 삭제</span><span style="background:#fffbe6">과목명 삭제</span><span style="background:var(--new)">교체함</span><span style="background:var(--room)">교과교실</span> 칸을 누르면 선생님을 바꿔 넣을 수 있어요.</div>
+  <div class="legend muted" style="margin-bottom:6px"><span style="background:repeating-linear-gradient(45deg,#fff,#fff 4px,#fdecec 4px,#fdecec 8px)">교과교실 삭제</span><span style="background:#fffbe6">과목명 삭제됨</span><span style="background:var(--new)">교체함</span><span style="background:var(--room)">교과교실</span> 칸을 누르면 선생님을 바꿔 넣을 수 있어요.</div>
   <div class="scroll" id="grid"></div>
   <div id="changes" style="margin-top:10px"></div>
 </section>
@@ -247,7 +246,7 @@ function build(){
       if(col.room){
         names(base.t).forEach(n=>displaced.push({name:n,p,s:base.s,col}));
         c.s='';c.t='';c.flag='removed';
-      }else if(base.s&&(isGroup(base.s)||S.subjAll)){
+      }else if(base.s){
         c.delS=base.s;c.s='';c.flag='subjDel';
       }
     }
@@ -288,10 +287,8 @@ function drawSettings(){
   $('gradeBox').querySelectorAll('button').forEach(b=>b.onclick=()=>{
     const g=b.dataset.g;S.grades=S.grades.includes(g)?S.grades.filter(x=>x!==g):[...S.grades,g].sort();save();render();});
   $('onlyExam').checked=!!S.onlyExam;
-  $('subjAll').checked=!!S.subjAll;
 }
 $('onlyExam').onchange=e=>{S.onlyExam=e.target.checked;save();drawGrid();};
-$('subjAll').onchange=e=>{S.subjAll=e.target.checked;save();render();};
 $('resetAll').onclick=()=>{if(confirm(S.day+'요일 교체 내용을 모두 지울까요?')){delete S.edits[S.day];save();render();}};
 
 function drawRemoved(){
@@ -316,8 +313,8 @@ function cellOut(d,p,col){
     const c=B.eff[col.key+'|'+p];
     let cls=c.edited?'edited':c.flag;
     let html;
-    if(c.flag==='removed'&&!c.edited)html=c.base?`<del>${esc(c.base.s)}<br>${esc(c.base.t)}</del>`:'';
-    else html=`<div class="s">${c.delS&&!c.edited?`<del>${esc(c.delS)}</del>`:esc(c.s)}</div>${esc(c.t)}`;
+    if(c.flag==='removed'&&!c.edited)html=c.base?`<del>${esc(c.base.t)}</del>`:'';
+    else html=`<div class="s">${esc(c.s)}</div>${esc(c.t)}`;
     return {cls,html,printHtml:(c.flag==='removed'&&!c.edited)?'':`<div class="s">${esc(c.s)}</div>${esc(c.t)}`};
   }
   const x=DATA.cells[d+'|'+p+'|'+col.key];
@@ -367,7 +364,7 @@ function personalHTML(n,target){
     DATA.days.forEach(d=>{
       const tg=target&&target.p===p&&d===S.day?' target':'';
       const o=baseAt(n,d,p);
-      const show=x=>`${esc(where(x))}<br>${x.delS?`<del>${esc(x.delS)}</del>`:esc(x.s)}`;
+      const show=x=>`${esc(where(x))}${x.s?'<br>'+esc(x.s):''}`;
       if(d!==S.day){h+=`<td class="${o.length?'busy':''}${tg}">${o.map(show).join('<hr style="margin:1px 0">')}</td>`;return;}
       const now=busyAt(n,p);
       if(now.length){
