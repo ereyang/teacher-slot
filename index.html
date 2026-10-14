@@ -599,17 +599,20 @@ $('xlsDay').onclick=()=>exportGrid([S.day]);
 $('xlsWeek').onclick=()=>exportGrid(DATA.days);
 $('xlsMulti').onclick=()=>{
   const list=picked();if(!list.length){alert('선생님을 먼저 고르세요.');return;}
-  const W=B.P.length+2;
-  const aoa=[[`${S.day}요일 선생님 시간표 (${examNote()})`,...Array(W-1).fill('')],['선생님',...B.P.map(p=>p+'교시'),'시간 수']];
+  // 행 = 교시, 열 = 선생님
+  const W=list.length+1;
+  const aoa=[[`${S.day}요일 선생님 시간표 (${examNote()})`,...Array(W-1).fill('')],['교시',...list]];
   const kinds={};
-  list.forEach(n=>{const r=aoa.length;
-    aoa.push([n,...B.P.map((p,j)=>{const c=dayCell(n,p);if(c.kind)kinds[r+'|'+(j+1)]=c.kind;return c.text;}),origHours(n)+'→'+examHours(n)]);});
+  B.P.forEach(p=>{const r=aoa.length;
+    aoa.push([p+'교시',...list.map((n,j)=>{const c=dayCell(n,p);if(c.kind)kinds[r+'|'+(j+1)]=c.kind;return c.text;})]);});
+  aoa.push(['시간 수',...list.map(n=>origHours(n)+'→'+examHours(n))]);
+  const last=aoa.length-1;
   const ws=sheetFrom(aoa,(i,j)=>{
       if(i===0)return xst({sz:13,bold:true,noBorder:true,left:true});
-      if(i===1||j===0)return xst({bold:true,fill:'F1F3F6'});
+      if(i===1||j===0||i===last)return xst({bold:true,fill:'F1F3F6'});
       const k=kinds[i+'|'+j];
       return xst({fill:k==='new'?'DCFCE7':k==='busy'?'EEF3FF':undefined,color:k==='rm'?'9CA3AF':undefined});
-    },[{s:{r:0,c:0},e:{r:0,c:W-1}}],[10,...B.P.map(()=>13),8],aoa.map((r,i)=>({hpt:i===0?24:i===1?18:32})));
+    },[{s:{r:0,c:0},e:{r:0,c:Math.max(W-1,1)}}],[8,...list.map(()=>12)],aoa.map((r,i)=>({hpt:i===0?24:i===1||i===last?18:40})));
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,S.day+'요일 선생님');
   XLSX.writeFile(wb,`선생님시간표_${S.day}요일_학력평가.xlsx`);
 };
