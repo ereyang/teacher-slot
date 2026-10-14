@@ -128,6 +128,7 @@ del{color:var(--no)}
       <button id="printWeek">🖨 월~금 전체 출력</button>
       <button id="xlsDay">📥 이 요일 엑셀</button>
       <button id="xlsWeek">📥 월~금 엑셀</button>
+      <span class="muted">(엑셀에는 교과교실 열 제외)</span>
     </div>
   </div>
   <div class="legend muted" style="margin-bottom:6px"><span style="background:repeating-linear-gradient(45deg,#fff,#fff 4px,#fdecec 4px,#fdecec 8px)">교과교실 삭제</span><span style="background:#fffbe6">과목명 삭제됨</span><span style="background:var(--new)">교체함</span><span style="background:var(--room)">교과교실</span> 칸을 누르면 선생님을 바꿔 넣을 수 있어요.</div>
@@ -559,7 +560,8 @@ function sheetFrom(aoa,styleAt,merges,widths,heights){
   return ws;
 }
 function exportGrid(dayList){
-  const cols=DATA.cols.filter(c=>!S.onlyExam||S.grades.includes(c.g));
+  // 엑셀에는 교과교실 열을 넣지 않음
+  const cols=DATA.cols.filter(c=>!c.room&&(!S.onlyExam||S.grades.includes(c.g)));
   const gs=[...new Set(cols.map(c=>c.g))];
   const W=cols.length+2;
   const aoa=[[`전체시간표 (${examNote()} 반영)`,...Array(W-1).fill('')],['요일','교시'],['','']];
