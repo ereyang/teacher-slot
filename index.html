@@ -97,7 +97,7 @@ del{color:var(--no)}
 <main>
 
 <section class="card">
-  <div class="row" style="justify-content:space-between"><h2 style="margin:0">① 전체 시간표 올리기 (월~금)</h2><button class="primary" id="newSem" style="display:none">🔄 새 시간표 올리기</button></div>
+  <div class="row" style="justify-content:space-between"><h2 style="margin:0">① 전체 시간표 올리기 (월~금)</h2><div class="row"><button id="tplFull">📄 전체시간표 양식</button><button id="tplTeacher">📄 교사시간표 양식</button><button class="primary" id="newSem" style="display:none">🔄 새 시간표 올리기</button></div></div>
   <div class="drop" id="drop" style="margin-top:10px">
     <input type="file" id="file" accept=".xlsx,.xls">
     <div class="muted" style="margin-top:6px">전체시간표 엑셀을 선택하거나 여기로 끌어 놓으세요. 이 컴퓨터(브라우저)에 저장되어 다음에도 그대로 쓸 수 있어요.<br>
@@ -732,6 +732,52 @@ function drawHR(){
     build();drawRemoved();drawGrid();drawTList();drawTView();drawMulti();
     $('hrStatus').innerHTML=`✅ ${homerooms().filter(c=>HR[c.key]&&(HR[c.key].hr||HR[c.key].sub)).length}개 반 / ${homerooms().length}개 반 입력됨 · 펼치면 직접 고칠 수 있어요.`;});
 }
+
+// ---------- 빈 양식 내려받기 ----------
+const TIMES=['08:20','09:20','10:20','11:20','13:00','14:00','15:00','16:00'];
+function defaultCols(){
+  const cols=[];
+  [['1',6,0],['2',6,1],['3',7,3]].forEach(([g,n,r])=>{
+    for(let i=1;i<=n;i++)cols.push({g,room:false,name:String(i)});
+    for(let i=0;i<r;i++)cols.push({g,room:true,name:'교과교실'});
+  });
+  return cols;
+}
+function fullTemplate(){
+  const cols=DATA?DATA.cols:defaultCols();
+  const days=['월','화','수','목','금'];
+  const per=d=>{const n=DATA&&DATA.periods[d]?Math.max(7,...DATA.periods[d]):7;return Array.from({length:n},(_,i)=>i+1)};
+  const W=cols.length+2;
+  const aoa=[['전체시간표',...Array(W-1).fill('')],['요일','교시'],['','']];
+  const merges=[{s:{r:0,c:0},e:{r:0,c:W-1}},{s:{r:1,c:0},e:{r:2,c:0}},{s:{r:1,c:1},e:{r:2,c:1}}];
+  let ci=2;
+  [...new Set(cols.map(c=>c.g))].forEach(g=>{const n=cols.filter(c=>c.g===g).length;
+    aoa[1].push(g+'학년',...Array(n-1).fill(''));if(n>1)merges.push({s:{r:1,c:ci},e:{r:1,c:ci+n-1}});ci+=n;});
+  cols.forEach(c=>aoa[2].push(c.name));
+  days.forEach(d=>{const P=per(d);const r0=aoa.length;
+    P.forEach((p,i)=>aoa.push([i===0?d:'',String(p),...cols.map(()=>'')]));
+    merges.push({s:{r:r0,c:0},e:{r:r0+P.length-1,c:0}});});
+  const ws=sheetFrom(aoa,(i,j)=>i===0?xst({sz:14,bold:true,noBorder:true}):i<=2||j<2?xst({bold:true,fill:'F1F3F6'}):xst(),
+    merges,[5,4,...cols.map(()=>7.5)],aoa.map((r,i)=>({hpt:i===0?26:i<=2?18:30})));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'전체시간표');
+  return wb;
+}
+function teacherTemplate(){
+  const count=DATA?allTeachers().length:45;
+  const days=['월','화','수','목','금'];
+  const aoa=[],kind={};
+  for(let k=0;k<count;k++){
+    kind[aoa.length]='head';aoa.push(['교사명',...days]);
+    for(let p=1;p<=7;p++){kind[aoa.length]='p';aoa.push([`${p}교시\n(${TIMES[p-1]})`,...days.map(()=>'')]);}
+    kind[aoa.length]='gap';aoa.push(['','','','','','']);
+  }
+  const ws=sheetFrom(aoa,(i,j)=>kind[i]==='gap'?xst({noBorder:true}):kind[i]==='head'?xst({bold:true,sz:10,fill:j===0?'FFF4C2':'F1F3F6'}):j===0?xst({bold:true,fill:'F1F3F6'}):xst(),
+    [],[10,12,12,12,12,12],aoa.map((r,i)=>({hpt:kind[i]==='gap'?10:kind[i]==='head'?18:30})));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'교사시간표');
+  return wb;
+}
+$('tplFull').onclick=()=>XLSX.writeFile(fullTemplate(),'전체시간표_양식.xlsx');
+$('tplTeacher').onclick=()=>XLSX.writeFile(teacherTemplate(),'교사시간표_양식.xlsx');
 
 DATA=load(KEY);
 HR=load(HKEY)||{};
