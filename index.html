@@ -546,7 +546,7 @@ function drawTList(){
 $('tq').oninput=()=>drawTList();
 function drawTView(){
   if(!selT){$('tview').innerHTML='<div class="empty">선생님을 고르세요.</div>';return;}
-  $('tview').innerHTML=`<div class="row" style="justify-content:space-between;margin-bottom:6px"><b>${esc(selT)} 선생님</b><span class="muted">${ADMIN?S.day+'요일 '+origHours(selT)+'→'+examHours(selT)+'시간':''}</span></div>`+(ADMIN?personalHTML(selT):personalDayHTML(selT))+gamdokHTML(selT);
+  $('tview').innerHTML=`<div class="row" style="justify-content:space-between;margin-bottom:6px"><b>${esc(selT)} 선생님</b><span class="muted">${ADMIN?S.day+'요일 '+origHours(selT)+'→'+examHours(selT)+'시간':''}</span></div>`+(ADMIN?personalHTML(selT)+gamdokHTML(selT):personalDayHTML(selT));
 }
 
 // ---------- 칸 편집 ----------
@@ -630,11 +630,28 @@ const examNote=()=>`학력평가: ${S.day}요일 ${S.grades.join('·')}학년`;
 $('printDay').onclick=()=>doPrint(`<div class="pg"><h3 style="margin:0 0 4px;text-align:center">전체시간표</h3>${ADMIN?gridHTML([S.day],S.onlyExam,true):gridHTML([S.day],S.onlyExam,true,true)}${ADMIN?`<div style="margin-top:6px;font-size:11px">${changesHTML()}</div>`:''}</div>`,true);
 $('printWeek').onclick=()=>doPrint(`<div class="pg"><h3 style="margin:0 0 4px;text-align:center">전체시간표</h3>${gridHTML(DATA.days,S.onlyExam,true)}</div>`,true);
 // 평가일 하루만: 교시 | 수업
+// 감독시간표가 있으면 한 표에: 교시 | 수업 | 감독 시간 | 학평
 function personalDayHTML(n){
-  return `<table class="tt" style="width:320px;max-width:100%"><tr><th style="width:70px">교시</th><th class="exam">${S.day}요일</th></tr>`+
-    B.P.map(p=>{const c=dayCell(n,p);return `<tr><th>${p}교시</th><td class="${c.kind}">${esc(c.text).replace(/\n/g,' ')}</td></tr>`}).join('')+'</table>';
+  const G=GAMDOK?gamdokOf(n):[];
+  const byP={},rest=[];
+  const has8=busyAt(n,8).some(x=>x.role==='담임');
+  G.forEach(r=>{
+    if(r.slot.type==='period')(byP[r.slot.p]=byP[r.slot.p]||[]).push(r);
+    else if(has8&&r.slot.type==='hr'&&r.exam!=='채점')(byP[8]=byP[8]||[]).push(r);
+    else rest.push(r);
+  });
+  const ex=rs=>rs.map(r=>esc(r.exam)+(r.note?`<div class="tag muted">${esc(r.note)}</div>`:'')).join('<hr style="margin:1px 0">');
+  const tm=rs=>rs.map(r=>esc(r.time)).join('<br>');
+  const g=!!GAMDOK;
+  let h=`<table class="tt" style="width:${g?'600px':'320px'};max-width:100%"><tr><th style="width:62px">교시</th><th class="exam">${S.day}요일</th>${g?'<th style="width:28%">감독 시간</th><th style="width:30%">학평</th>':''}</tr>`;
+  const guide=rest.filter(r=>r.slot.type==='guide');
+  guide.forEach(r=>h+=`<tr><th>입실</th><td>${esc(r.cls)}</td><td>${esc(r.time)||'시험 전'}</td><td>${esc(r.exam)}</td></tr>`);
+  B.P.forEach(p=>{const c=dayCell(n,p);const rs=byP[p]||[];
+    h+=`<tr><th>${p}교시</th><td class="${c.kind}">${esc(c.text).replace(/\n/g,' ')}</td>${g?`<td class="${rs.length?'busy':''}">${tm(rs)}</td><td class="${rs.length?'busy':''}">${ex(rs)}</td>`:''}</tr>`;});
+  rest.filter(r=>r.slot.type!=='guide').forEach(r=>h+=`<tr><th>${r.exam==='채점'?'채점':'담임'}</th><td>${esc(r.cls)}</td><td class="busy">${esc(r.time)}</td><td class="busy">${ex([r])}</td></tr>`);
+  return h+'</table>';
 }
-const pbox=n=>`<div class="pbox"><h3 style="margin:0 0 4px;text-align:center">${esc(n)} 선생님 시간표</h3>${ADMIN?personalHTML(n):personalDayHTML(n)}${gamdokHTML(n)}</div>`;
+const pbox=n=>`<div class="pbox"><h3 style="margin:0 0 4px;text-align:center">${esc(n)} 선생님 시간표</h3>${ADMIN?personalHTML(n)+gamdokHTML(n):personalDayHTML(n)}</div>`;
 function printTeachers(list){
   if(!list.length){alert('출력할 선생님이 없어요.');return;}
   let h='';for(let i=0;i<list.length;i+=2)h+=`<div class="pg">${list.slice(i,i+2).map(pbox).join('')}</div>`;
