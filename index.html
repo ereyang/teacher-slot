@@ -631,7 +631,7 @@ $('printDay').onclick=()=>doPrint(`<div class="pg"><h3 style="margin:0 0 4px;tex
 $('printWeek').onclick=()=>doPrint(`<div class="pg"><h3 style="margin:0 0 4px;text-align:center">전체시간표</h3>${gridHTML(DATA.days,S.onlyExam,true)}</div>`,true);
 // 평가일 하루만: 교시 | 수업
 function personalDayHTML(n){
-  return `<table class="tt"><tr><th style="width:70px">교시</th><th class="exam">${S.day}요일</th></tr>`+
+  return `<table class="tt" style="width:320px;max-width:100%"><tr><th style="width:70px">교시</th><th class="exam">${S.day}요일</th></tr>`+
     B.P.map(p=>{const c=dayCell(n,p);return `<tr><th>${p}교시</th><td class="${c.kind}">${esc(c.text).replace(/\n/g,' ')}</td></tr>`}).join('')+'</table>';
 }
 const pbox=n=>`<div class="pbox"><h3 style="margin:0 0 4px;text-align:center">${esc(n)} 선생님 시간표</h3>${ADMIN?personalHTML(n):personalDayHTML(n)}${gamdokHTML(n)}</div>`;
@@ -987,7 +987,7 @@ const gamdokOf=n=>gamdokRows().filter(r=>r.name===n).sort((a,b)=>a.order-b.order
 function gamdokHTML(n){
   if(!GAMDOK)return '';
   const rows=gamdokOf(n);
-  return `<div style="margin-top:8px"><b>감독 시간표</b>${rows.length?`<table class="tt" style="margin-top:4px"><tr><th style="width:26%">시간</th><th style="width:26%">고사</th><th style="width:14%">반</th><th>비고</th></tr>`+
+  return `<div style="margin-top:8px"><b>감독 시간표</b>${rows.length?`<table class="tt" style="margin-top:4px;${ADMIN?'':'width:520px;max-width:100%'}"><tr><th style="width:26%">시간</th><th style="width:26%">고사</th><th style="width:14%">반</th><th>비고</th></tr>`+
     rows.map(r=>`<tr><td>${esc(r.time)}</td><td>${esc(r.exam)}</td><td><b>${esc(r.cls)}</b></td><td style="font-size:11.5px">${esc(r.note)}</td></tr>`).join('')+'</table>'
     :'<div class="muted">감독 없음</div>'}</div>`;
 }
