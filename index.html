@@ -546,7 +546,7 @@ function drawTList(){
 $('tq').oninput=()=>drawTList();
 function drawTView(){
   if(!selT){$('tview').innerHTML='<div class="empty">선생님을 고르세요.</div>';return;}
-  $('tview').innerHTML=`<div class="row" style="justify-content:space-between;margin-bottom:6px"><b>${esc(selT)} 선생님</b><span class="muted">${ADMIN?S.day+'요일 '+origHours(selT)+'→'+examHours(selT)+'시간':''}</span></div>`+personalHTML(selT)+gamdokHTML(selT);
+  $('tview').innerHTML=`<div class="row" style="justify-content:space-between;margin-bottom:6px"><b>${esc(selT)} 선생님</b><span class="muted">${ADMIN?S.day+'요일 '+origHours(selT)+'→'+examHours(selT)+'시간':''}</span></div>`+(ADMIN?personalHTML(selT):personalDayHTML(selT))+gamdokHTML(selT);
 }
 
 // ---------- 칸 편집 ----------
