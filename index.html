@@ -597,7 +597,7 @@ function gridSheet(dayList){
   const cols=DATA.cols.filter(c=>!c.room&&(!S.onlyExam||S.grades.includes(c.g)));
   const gs=[...new Set(cols.map(c=>c.g))];
   const W=cols.length+2;
-  const aoa=[[`전체시간표 (${examNote()} 반영)`,...Array(W-1).fill('')],['요일','교시'],['','']];
+  const aoa=[['전체시간표',...Array(W-1).fill('')],['요일','교시'],['','']];
   const merges=[{s:{r:0,c:0},e:{r:0,c:W-1}},{s:{r:1,c:0},e:{r:2,c:0}},{s:{r:1,c:1},e:{r:2,c:1}}];
   let ci=2;
   gs.forEach(g=>{const n=cols.filter(c=>c.g===g).length;
@@ -621,7 +621,7 @@ function gridSheet(dayList){
     if(P.length>1)merges.push({s:{r:r0,c:0},e:{r:r0+P.length-1,c:0}});
   });
   const ws=sheetFrom(aoa,(i,j)=>{
-      if(i===0)return xst({sz:13,bold:true,noBorder:true,left:true});
+      if(i===0)return xst({sz:14,bold:true,noBorder:true});
       if(i<=2||j<2)return xst({bold:true,fill:i===2&&cols[j-2]&&cols[j-2].room?'EDE9FE':'F1F3F6'});
       return xst({fill:edited[i+'|'+j]?'DCFCE7':undefined});
     },merges,[5,dayList.includes(S.day)&&(hrTag(7)||hrTag(8))?8:4,...cols.map(()=>7.5)],aoa.map((r,i)=>({hpt:i===0?24:i<=2?18:30})));
@@ -636,13 +636,13 @@ $('xlsWeek').onclick=()=>exportGrid(DATA.days);
 function multiSheet(list){
   // 행 = 교시, 열 = 선생님
   const W=list.length+1;
-  const aoa=[[`${S.day}요일 선생님 시간표 (${examNote()})`,...Array(W-1).fill('')],['교시',...list]];
+  const aoa=[[`${S.day}요일 선생님 시간표`,...Array(W-1).fill('')],['교시',...list]];
   const kinds={};
   B.P.forEach(p=>{const r=aoa.length;
     aoa.push([p+'교시'+hrTag(p),...list.map((n,j)=>{const c=dayCell(n,p);if(c.kind)kinds[r+'|'+(j+1)]=c.kind;return c.text;})]);});
 
   const ws=sheetFrom(aoa,(i,j)=>{
-      if(i===0)return xst({sz:13,bold:true,noBorder:true,left:true});
+      if(i===0)return xst({sz:14,bold:true,noBorder:true});
       if(i===1||j===0)return xst({bold:true,fill:'F1F3F6'});
       const k=kinds[i+'|'+j];
       return xst({fill:k==='new'?'DCFCE7':k==='busy'?'EEF3FF':undefined,color:k==='rm'?'9CA3AF':undefined});
