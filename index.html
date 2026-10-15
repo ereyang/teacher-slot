@@ -640,10 +640,10 @@ function personalDayHTML(n){
     else if(has8&&r.slot.type==='hr'&&r.exam!=='채점')(byP[8]=byP[8]||[]).push(r);
     else rest.push(r);
   });
-  const ex=rs=>rs.map(r=>esc(r.exam)+(r.note?`<div class="tag muted">${esc(r.note)}</div>`:'')).join('<hr style="margin:1px 0">');
+  const ex=rs=>rs.map(r=>{const d=slotDetail(r);return `<b>${esc(r.exam)}</b>`+(d.examTime?`<div class="tag">${esc(d.examTime)}</div>`:'')+entryHTML(d.entry)+(r.note?`<div class="tag muted">${esc(r.note)}</div>`:'')}).join('<hr style="margin:1px 0">');
   const tm=rs=>rs.map(r=>esc(r.time)).join('<br>');
   const g=!!GAMDOK;
-  let h=`<table class="tt" style="width:${g?'600px':'320px'};max-width:100%"><tr><th style="width:62px">교시</th><th class="exam">${S.day}요일</th>${g?'<th style="width:28%">감독 시간</th><th style="width:30%">학평</th>':''}</tr>`;
+  let h=`<table class="tt" style="width:${g?'680px':'320px'};max-width:100%"><tr><th style="width:62px">교시</th><th class="exam">${S.day}요일</th>${g?'<th style="width:22%">감독 시간</th><th style="width:40%">학평 (시험 시간 · 입실)</th>':''}</tr>`;
   const guide=rest.filter(r=>r.slot.type==='guide');
   guide.forEach(r=>h+=`<tr><th>입실</th><td>${esc(r.cls)}</td><td>${esc(r.time)||'시험 전'}</td><td>${esc(r.exam)}</td></tr>`);
   B.P.forEach(p=>{const c=dayCell(n,p);const rs=byP[p]||[];
@@ -947,6 +947,9 @@ function parseGamdok(tables){
   tables.forEach(t=>{
     const flat=t.map(r=>r.join(' ')).join(' ');
     if(/운영/.test(flat)&&t.length<=3){lastTitle=(t.flat().find(v=>/운영/.test(v))||'').trim();return;}
+    if(groups.length&&t.length&&t.every(r=>r.length>=2&&/\d:\d\d\s*[~\-–]\s*\d/.test(r[1]||''))){
+      groups[groups.length-1].subs=t.map(r=>({name:r[0].trim(),time:r[1].trim()}));return;
+    }
     const h=t.findIndex(r=>r.some(v=>v.replace(/\s/g,'')==='감독교사'));
     if(h<0)return;
     const cW=t[h].findIndex(v=>v.replace(/\s/g,'')==='감독교사');
@@ -955,8 +958,9 @@ function parseGamdok(tables){
     const gm=lastTitle.match(/운영\s*-?\s*([1-3](?:\s*[,·]\s*[1-3])*)\s*학년/);
     const grades=gm?gm[1].split(/[,·]/).map(x=>x.trim()):['1','2','3'];
     // 교시별 시험 과목 (예: 1교시 → 국어)
-    const subj={};
-    t.slice(h+1).forEach(r=>{const per=(r[0]||'').replace(/\s/g,'');const w=(r[1]||'').split('\n')[0].trim();if(/\s시험$/.test(w)&&!subj[per])subj[per]=w.replace(/\s*시험$/,'').trim();});
+    const subj={},opT={};
+    t.slice(h+1).forEach(r=>{const per=(r[0]||'').replace(/\s/g,'');const w=(r[1]||'').split('\n')[0].trim();
+      if(/\s시험$/.test(w)&&!subj[per]){subj[per]=w.replace(/\s*시험$/,'').trim();const m=(r[cOp]||'').match(/\d{1,2}:\d{2}\s*[-–~]\s*\d{1,2}:\d{2}/);if(m)opT[per]=m[0];}});
     const slots=[];const seen=new Set();
     t.slice(h+1).forEach(r=>{
       const who=(r[cW]||'').replace(/\s/g,'');if(!who)return;
@@ -972,7 +976,7 @@ function parseGamdok(tables){
       else if(/담임/.test(who))slot={type:'guide'};
       else return;
       if(slot.type!=='period'&&(!time||time===who||/담임/.test(time)))time=(r[cOp]||'').split('\n')[0].trim();
-      slot.time=time;slot.note=note;
+      slot.time=time;slot.note=note;slot.examTime=opT[per]||'';
       slot.exam=subj[per]?per+' '+subj[per]:what.replace(/^채\s*점$/,'채점').replace(/^수험생 입실 완료$/,'입실 지도');
       const key=slot.type+'|'+(slot.p||'')+'|'+slot.time;
       if(seen.has(key))return;seen.add(key);slots.push(slot);
@@ -981,6 +985,17 @@ function parseGamdok(tables){
   });
   return groups;
 }
+const toMin=x=>{const m=String(x||'').match(/(\d{1,2}):(\d{2})/);return m?+m[1]*60+ +m[2]:null};
+const rng=x=>{const m=String(x||'').match(/(\d{1,2}:\d{2})\s*[-–~]\s*(\d{1,2}:\d{2})/);return m?[toMin(m[1]),toMin(m[2]),m[1]+'~'+m[2]]:null};
+// 감독 행 → 실제 시험 진행 시간 + 입실 방식(시작 전 / 시험 중 교대)
+function slotDetail(r){
+  const sl=r.slot,st=rng(sl.time),ex=rng(sl.examTime);
+  if(sl.type==='guide'||!st||!ex)return {examTime:sl.examTime||'',entry:''};
+  const subs=(r.subs||[]).map(x=>({name:x.name,r:rng(x.time)})).filter(x=>x.r&&x.r[0]>=ex[0]&&x.r[1]<=ex[1]&&x.r[0]<st[1]&&x.r[1]>st[0]);
+  const target=subs.length?subs[0].r[0]:ex[0];
+  return {examTime:'시험 '+ex[2]+(subs.length?' ('+subs.map(x=>x.name+' '+x.r[2]).join(', ')+')':''),entry:st[0]<=target?(subs.length?subs[0].name+' ':'')+'시험 시작 전 입실':'시험 중 교대 입실'};
+}
+const entryHTML=e=>e?`<div class="tag" style="font-weight:bold;color:${/교대/.test(e)?'#c2410c':'var(--ok)'}">${e}</div>`:'';
 // 반 c(열 키)의 감독 슬롯 담당 선생님들
 function slotTeachers(colKey,slot){
   if(slot.type==='period'){const c=B.eff[colKey+'|'+slot.p];return c?names(c.t):[];}
@@ -994,7 +1009,7 @@ function gamdokRows(){   // 전체: [{name,time,exam,cls,note,order}]
   GAMDOK.groups.forEach(g=>{
     const gs=g.grades.filter(x=>S.grades.includes(x));
     DATA.cols.filter(c=>!c.room&&gs.includes(c.g)).forEach(col=>{
-      g.slots.forEach((sl,i)=>slotTeachers(col.key,sl).forEach(n=>out.push({name:n,time:sl.time,exam:sl.exam,cls:col.label,note:sl.note,order:i,slot:sl,col})));
+      g.slots.forEach((sl,i)=>slotTeachers(col.key,sl).forEach(n=>out.push({name:n,time:sl.time,exam:sl.exam,cls:col.label,note:sl.note,order:i,slot:sl,col,subs:g.subs||[]})));
       g.slots.forEach((sl,i)=>{if(!slotTeachers(col.key,sl).length)out.push({name:'',time:sl.time,exam:sl.exam,cls:col.label,note:sl.note,order:i,slot:sl,col});});
     });
   });
@@ -1004,15 +1019,17 @@ const gamdokOf=n=>gamdokRows().filter(r=>r.name===n).sort((a,b)=>a.order-b.order
 function gamdokHTML(n){
   if(!GAMDOK)return '';
   const rows=gamdokOf(n);
-  return `<div style="margin-top:8px"><b>감독 시간표</b>${rows.length?`<table class="tt" style="margin-top:4px;${ADMIN?'':'width:520px;max-width:100%'}"><tr><th style="width:26%">시간</th><th style="width:26%">고사</th><th style="width:14%">반</th><th>비고</th></tr>`+
-    rows.map(r=>`<tr><td>${esc(r.time)}</td><td>${esc(r.exam)}</td><td><b>${esc(r.cls)}</b></td><td style="font-size:11.5px">${esc(r.note)}</td></tr>`).join('')+'</table>'
+  return `<div style="margin-top:8px"><b>감독 시간표</b>${rows.length?`<table class="tt" style="margin-top:4px;${ADMIN?'':'width:520px;max-width:100%'}"><tr><th style="width:20%">감독 시간</th><th style="width:34%">학평 (시험 시간 · 입실)</th><th style="width:12%">반</th><th>비고</th></tr>`+
+    rows.map(r=>{const d=slotDetail(r);return `<tr><td>${esc(r.time)}</td><td><b>${esc(r.exam)}</b>${d.examTime?`<div class="tag">${esc(d.examTime)}</div>`:''}${entryHTML(d.entry)}</td><td><b>${esc(r.cls)}</b></td><td style="font-size:11.5px">${esc(r.note)}</td></tr>`}).join('')+'</table>'
     :'<div class="muted">감독 없음</div>'}</div>`;
 }
 function gamdokSheet(list){
-  const aoa=[['감독 시간표','','','',''],['선생님','시간','고사','반','비고']];
-  list.forEach(n=>{const rows=gamdokOf(n);(rows.length?rows:[{time:'감독 없음',exam:'',cls:'',note:''}]).forEach((r,i)=>aoa.push([i===0?n:'',r.time,r.exam,r.cls,r.note]));});
-  return sheetFrom(aoa,(i,j)=>i===0?xst({sz:14,bold:true,noBorder:true}):i===1||j===0?xst({bold:true,fill:'F1F3F6'}):xst({left:j===4}),
-    [{s:{r:0,c:0},e:{r:0,c:4}}],[10,16,16,7,28],aoa.map((r,i)=>({hpt:i===0?24:20})));
+  const aoa=[['감독 시간표','','','','','',''],['선생님','감독 시간','학평','시험 시간','입실','반','비고']];
+  list.forEach(n=>{const rows=gamdokOf(n);
+    if(!rows.length){aoa.push([n,'감독 없음','','','','','']);return;}
+    rows.forEach((r,i)=>{const d=slotDetail(r);aoa.push([i===0?n:'',r.time,r.exam,d.examTime.replace(/^시험 /,''),d.entry,r.cls,r.note]);});});
+  return sheetFrom(aoa,(i,j)=>i===0?xst({sz:14,bold:true,noBorder:true}):i===1||j===0?xst({bold:true,fill:'F1F3F6'}):xst({left:j===6||j===3,color:j===4&&/교대/.test(aoa[i][4])?'C2410C':undefined,bold:j===4}),
+    [{s:{r:0,c:0},e:{r:0,c:6}}],[10,14,18,30,16,7,26],aoa.map((r,i)=>({hpt:i===0?24:22})));
 }
 function drawGamdok(){
   if(!ADMIN)return;
