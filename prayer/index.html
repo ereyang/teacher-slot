@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>오늘의 기도</title>
+<meta name="theme-color" content="#f3a64a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="오늘의 기도">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+:root{--bg:#fdf8f1;--card:#fff;--ink:#3a2f25;--muted:#8a7a6a;--line:#efe3d3;--accent:#e8892c;--accent2:#fbe3c6;--child:#3b9c6e;--childbg:#e3f5ea;--parent:#5a72c9;--parentbg:#e6ebfb;--no:#d14343;--nobg:#fdecec}
+@media (prefers-color-scheme:dark){:root{--bg:#1f1a15;--card:#2a241e;--ink:#f2e9df;--muted:#b4a594;--line:#3d342b;--accent:#f3a64a;--accent2:#4a3622;--child:#6fd3a2;--childbg:#203a2d;--parent:#9fb2f5;--parentbg:#262f4d;--no:#ff8080;--nobg:#4a2424}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;font-size:16px;padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+header{padding:calc(14px + env(safe-area-inset-top)) 16px 6px;max-width:640px;margin:0 auto;display:flex;align-items:center;gap:8px}
+header h1{margin:0;font-size:21px;flex:1}
+header .today{font-size:14px;color:var(--muted)}
+main{max-width:640px;margin:0 auto;padding:8px 16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px}
+.card h2{margin:0 0 12px;font-size:17px}
+.muted{color:var(--muted);font-size:14px}
+.small{font-size:13px}
+button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:10px 14px}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+button.big{width:100%;padding:15px;font-size:17px}
+button.sm{padding:5px 10px;font-size:14px;border-radius:9px}
+button.danger{color:var(--no);border-color:var(--no)}
+button:disabled{opacity:.45;cursor:default}
+input[type=text],input[type=password],input[type=tel],input[type=date]{font:inherit;width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink)}
+label.f{display:block;margin:0 0 12px}
+label.f>span{display:block;font-size:14px;color:var(--muted);margin-bottom:5px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.grow{flex:1}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.seg button{padding:14px 6px;font-weight:700}
+.seg button.on.child{background:var(--childbg);border-color:var(--child);color:var(--child)}
+.seg button.on.parent{background:var(--parentbg);border-color:var(--parent);color:var(--parent)}
+.badge{display:inline-block;font-size:12px;font-weight:700;border-radius:99px;padding:2px 9px}
+.badge.child{background:var(--childbg);color:var(--child)}
+.badge.parent{background:var(--parentbg);color:var(--parent)}
+.player{position:relative;background:#000;border-radius:14px;overflow:hidden;aspect-ratio:9/12;max-height:68vh;width:100%;display:flex;align-items:center;justify-content:center}
+.player video,.player iframe{width:100%;height:100%;border:0;object-fit:contain;background:#000}
+.player .msg{color:#eee;text-align:center;padding:20px;font-size:15px;line-height:1.6}
+.daynav{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.daynav .d{flex:1;text-align:center}
+.daynav .d b{display:block;font-size:19px}
+.who{margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.who .nm{font-size:20px;font-weight:800}
+.empty{text-align:center;padding:36px 10px;color:var(--muted);line-height:1.7}
+.empty .ic{font-size:44px}
+.list{list-style:none;margin:0;padding:0}
+.list li{display:flex;align-items:center;gap:10px;padding:11px 2px;border-bottom:1px solid var(--line)}
+.list li:last-child{border-bottom:0}
+.list .dt{width:74px;flex:none;font-size:14px;color:var(--muted)}
+.list .dt b{display:block;color:var(--ink);font-size:15px}
+.list li.past{opacity:.75}
+.list li.isToday{background:var(--accent2);border-radius:12px;padding-left:8px;padding-right:8px}
+.list li.tap{cursor:pointer}
+.month{font-weight:800;margin:16px 0 4px;color:var(--accent)}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom);z-index:5}
+nav.tabs button{flex:1;max-width:160px;border:0;border-radius:0;background:none;padding:9px 2px 10px;font-size:12px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px}
+nav.tabs button .i{font-size:22px;line-height:1}
+nav.tabs button.on{color:var(--accent);font-weight:700}
+.pick{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pick button{padding:20px 6px;font-size:16px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:6px}
+.pick button .i{font-size:30px}
+.bar{height:10px;background:var(--line);border-radius:99px;overflow:hidden;margin:10px 0 6px}
+.bar>i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+.bar.ind>i{width:35%;animation:ind 1.3s infinite ease-in-out}
+@keyframes ind{0%{margin-left:-35%}100%{margin-left:100%}}
+.note{background:var(--accent2);border-radius:12px;padding:12px;font-size:14px;line-height:1.6}
+.err{background:var(--nobg);color:var(--no);border-radius:12px;padding:10px 12px;font-size:14px;margin-top:10px}
+.done{text-align:center;padding:10px 0}
+.done .ic{font-size:50px}
+.done b{color:var(--accent)}
+/* 촬영 화면 */
+#cam{position:fixed;inset:0;background:#000;z-index:20;display:none;flex-direction:column}
+#cam.on{display:flex}
+#cam video{flex:1;width:100%;min-height:0;object-fit:cover}
+#cam video.mirror{transform:scaleX(-1)}
+#cam .top{position:absolute;top:0;left:0;right:0;padding:calc(12px + env(safe-area-inset-top)) 14px 12px;display:flex;justify-content:space-between;align-items:center;color:#fff}
+#cam .top button{background:rgba(0,0,0,.45);color:#fff;border:0}
+#cam .time{font-size:18px;font-weight:700;background:rgba(0,0,0,.45);border-radius:99px;padding:5px 14px}
+#cam .time.rec::before{content:'● ';color:#ff4d4d}
+#cam .bottom{padding:18px 0 calc(22px + env(safe-area-inset-bottom));display:flex;justify-content:center;align-items:center;gap:40px;background:#000}
+#recBtn{width:76px;height:76px;border-radius:50%;border:5px solid #fff;background:#e33;padding:0}
+#recBtn.rec{background:#e33;border-radius:50%;box-shadow:inset 0 0 0 18px #000}
+#cam .hint{position:absolute;bottom:calc(120px + env(safe-area-inset-bottom));left:0;right:0;text-align:center;color:#fff;text-shadow:0 1px 3px #000;font-size:15px}
+#flipBtn{background:rgba(255,255,255,.18);color:#fff;border:0;width:52px;height:52px;border-radius:50%;font-size:22px;padding:0}
+.spacer{width:52px}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <h1>🙏 오늘의 기도</h1>
+  <span class="today" id="todayLbl"></span>
+</header>
+<main id="main"></main>
+
+<nav class="tabs" id="tabs">
+  <button data-t="today"><span class="i">🌅</span>오늘의 기도</button>
+  <button data-t="cal"><span class="i">📅</span>기도 달력</button>
+  <button data-t="up"><span class="i">🎥</span>영상 올리기</button>
+  <button data-t="mine"><span class="i">🏠</span>우리 가정</button>
+</nav>
+
+<div id="cam">
+  <video id="camVideo" autoplay playsinline muted></video>
+  <div class="top"><button id="camClose">✕ 닫기</button><span class="time" id="camTime">0:00</span></div>
+  <div class="hint" id="camHint">빨간 버튼을 누르면 촬영이 시작돼요</div>
+  <div class="bottom"><span class="spacer"></span><button id="recBtn" aria-label="촬영"></button><button id="flipBtn" aria-label="카메라 전환">🔄</button></div>
+</div>
+
+<script>
+// ---------- 설정 ----------
+// 구글 Apps Script 웹 앱 주소 (prayer/gas/Code.gs 배포 후 여기에 붙여 넣기)
+const API_DEFAULT='';
+const LIMIT=24*1024*1024;      // 올릴 수 있는 영상 크기 (Apps Script 요청 한도 때문에)
+const MAX_REC=180;             // 앱에서 찍을 때 최대 3분
+const MAX_UP=300;              // 고른 영상은 최대 5분
+const KIND={child:'아이 기도',parent:'부모 기도'};
+const AKEY='prayer.api',FKEY='prayer.family',PKEY='prayer.adminpw';
+
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ls={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
+let API=API_DEFAULT||ls.get(AKEY)||'';
+const kstToday=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul'}).format(new Date());
+const WD='일월화수목금토';
+const dObj=d=>new Date(d+'T00:00:00');
+const fmtD=d=>{const t=dObj(d);return `${t.getMonth()+1}월 ${t.getDate()}일 (${WD[t.getDay()]})`;};
+const addDays=(d,n)=>{const t=new Date(d+'T00:00:00Z');t.setUTCDate(t.getUTCDate()+n);return t.toISOString().slice(0,10);};
+const mb=n=>(n/1048576).toFixed(1)+'MB';
+const mmss=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
+const badge=k=>`<span class="badge ${k}">${KIND[k]}</span>`;
+
+let TODAY=kstToday(),ENTRIES=[],LOADED=false,LOAD_ERR='',HAS_PW=false;
+let tab='today',viewDate=null,ADMIN_PW=ls.get(PKEY)||'';
+
+// ---------- 서버 ----------
+async function api(body){
+  const r=await fetch(API,{method:'POST',body:JSON.stringify(body)});
+  return r.json();
+}
+async function loadList(){
+  if(!API)return;
+  try{
+    const r=await fetch(API+'?a=list&t='+Date.now()).then(r=>r.json());
+    if(!r.ok)throw new Error(r.msg);
+    TODAY=r.today||TODAY;ENTRIES=r.entries||[];HAS_PW=r.hasPw;LOAD_ERR='';
+  }catch(e){LOAD_ERR='서버에 연결하지 못했어요. 인터넷 연결을 확인해 주세요.';}
+  LOADED=true;
+}
+const byDate=d=>ENTRIES.find(e=>e.date===d);
+
+// ---------- 영상 재생 ----------
+const blobCache={};
+async function fetchVideo(e){
+  if(blobCache[e.id])return blobCache[e.id];
+  const r=await fetch(API+'?a=video&id='+encodeURIComponent(e.id)).then(r=>r.json());
+  if(!r.ok)throw new Error(r.msg);
+  const bin=atob(r.data),u=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+  return blobCache[e.id]=URL.createObjectURL(new Blob([u],{type:r.mime||'video/mp4'}));
+}
+function mountPlayer(el,e){
+  const direct=async()=>{
+    el.innerHTML='<div class="msg">영상을 불러오는 중이에요…<div class="bar ind" style="width:160px;margin:12px auto"><i></i></div></div>';
+    try{const url=await fetchVideo(e);el.innerHTML=`<video src="${url}" controls playsinline preload="metadata"></video>`;}
+    catch(err){el.innerHTML=`<div class="msg">영상을 불러오지 못했어요.<br><button class="sm" style="margin-top:10px">다시 시도</button></div>`;el.querySelector('button').onclick=direct;}
+  };
+  if(e.shared&&e.fileId){
+    el.innerHTML=`<iframe src="https://drive.google.com/file/d/${encodeURIComponent(e.fileId)}/preview" allow="autoplay; fullscreen" allowfullscreen></iframe>`;
+    const alt=document.createElement('button');alt.className='sm';alt.textContent='영상이 안 나오면 눌러 주세요';
+    alt.style.marginTop='8px';alt.onclick=()=>{alt.remove();direct();};
+    el.after(alt);
+  }else direct();
+}
+
+// ---------- 화면 ----------
+function render(){
+  $('todayLbl').textContent=fmtD(TODAY);
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
+  const m=$('main');
+  if(!API){m.innerHTML=setupView();bindSetup();return;}
+  if(!LOADED){m.innerHTML='<div class="card empty"><div class="ic">⏳</div>불러오는 중이에요…</div>';return;}
+  if(tab==='today')renderToday(m);
+  else if(tab==='cal')renderCal(m);
+  else if(tab==='up')renderUp(m);
+  else if(tab==='mine')renderMine(m);
+  else if(tab==='admin')renderAdmin(m);
+}
+function errBox(){return LOAD_ERR?`<div class="err">${esc(LOAD_ERR)}</div>`:'';}
+
+function renderToday(m){
+  const d=viewDate||TODAY,e=byDate(d),isToday=d===TODAY;
+  const past=ENTRIES.filter(x=>x.date<TODAY).map(x=>x.date);
+  const prev=[...past].reverse().find(x=>x<d), next=ENTRIES.find(x=>x.date>d&&x.date<=TODAY);
+  const left=ENTRIES.filter(x=>x.date>TODAY).length;
+  m.innerHTML=`${errBox()}<div class="card">
+    <div class="daynav">
+      <button class="sm" id="pv" ${prev?'':'disabled'}>◀ 이전</button>
+      <div class="d"><b>${isToday?'오늘':fmtD(d)}</b><span class="muted">${isToday?fmtD(d):'지난 기도'}</span></div>
+      <button class="sm" id="nx" ${d<TODAY?'':'disabled'}>${next&&next.date<TODAY?'다음 ▶':'오늘 ▶'}</button>
+    </div>
+    ${e?`<div class="player" id="pl"></div>
+      <div class="who">${badge(e.kind)}<span class="nm">${esc(e.name)}</span><span class="muted">${esc(e.family)}</span></div>`
+     :`<div class="empty"><div class="ic">🕊️</div>${isToday?'오늘은 아직 기도 영상이 없어요.<br>오늘의 첫 기도를 올려 주세요!':'이 날은 기도 영상이 없었어요.'}
+       ${isToday?'<div style="margin-top:14px"><button class="primary" id="goUp">🎥 기도 영상 올리기</button></div>':''}</div>`}
+  </div>
+  <div class="card muted">📮 앞으로 <b style="color:var(--accent)">${left}일</b> 동안의 기도가 준비되어 있어요. 영상을 올리면 비어 있는 다음 날짜에 하나씩 &lsquo;오늘의 기도&rsquo;로 나와요.</div>`;
+  if(e)mountPlayer($('pl'),e);
+  if($('pv'))$('pv').onclick=()=>{viewDate=prev;render();};
+  $('nx').onclick=()=>{viewDate=next&&next.date<TODAY?next.date:null;render();};
+  if($('goUp'))$('goUp').onclick=()=>go('up');
+}
+
+function renderCal(m){
+  if(!ENTRIES.length){m.innerHTML=errBox()+'<div class="card empty"><div class="ic">📅</div>아직 올라온 기도 영상이 없어요.</div>';return;}
+  let html='',mon='';
+  ENTRIES.forEach(e=>{
+    const t=dObj(e.date),mk=`${t.getFullYear()}년 ${t.getMonth()+1}월`;
+    if(mk!==mon){if(mon)html+='</ul>';html+=`<div class="month">${mk}</div><ul class="list">`;mon=mk;}
+    const st=e.date<TODAY?'past tap':e.date===TODAY?'isToday tap':'';
+    html+=`<li class="${st}" data-d="${e.date}"><div class="dt"><b>${t.getDate()}일 (${WD[t.getDay()]})</b>${e.date===TODAY?'오늘':e.date>TODAY?'예정':'▶ 보기'}</div>
+      <div class="grow">${badge(e.kind)} <b>${esc(e.name)}</b><div class="muted small">${esc(e.family)}</div></div></li>`;
+  });
+  html+='</ul>';
+  m.innerHTML=`${errBox()}<div class="card"><h2>기도 달력</h2><div class="muted small">지난 날과 오늘 영상은 눌러서 볼 수 있어요. 앞으로의 영상은 그날 공개돼요.</div>${html}</div>`;
+  m.querySelectorAll('li.tap').forEach(li=>li.onclick=()=>{viewDate=li.dataset.d===TODAY?null:li.dataset.d;go('today');});
+}
+
+// ---------- 올리기 ----------
+const U={kind:'child',blob:null,url:'',src:'',file:null,busy:false,result:null};
+function famSaved(){try{return JSON.parse(ls.get(FKEY))||{}}catch(e){return{}}}
+function renderUp(m){
+  if(U.result){
+    const e=U.result;
+    m.innerHTML=`<div class="card done"><div class="ic">🎉</div><h2>고마워요! 기도 영상이 올라갔어요.</h2>
+      <p>${badge(e.kind)} <b>${esc(e.name)}</b>의 기도는<br><b style="font-size:20px">${fmtD(e.date)}</b>${e.date===TODAY?' (오늘!)':''}에<br>모두의 &lsquo;오늘의 기도&rsquo;로 나와요.</p>
+      ${e.shared?'':'<p class="muted small">(학교·회사 계정 등으로 드라이브 공유가 막혀 있어 앱을 통해서만 재생돼요.)</p>'}
+      <div class="two"><button id="again">다른 영상 올리기</button><button class="primary" id="toCal">기도 달력 보기</button></div></div>`;
+    $('again').onclick=()=>{U.result=null;clearVideo();render();};
+    $('toCal').onclick=()=>{U.result=null;clearVideo();go('cal');};
+    return;
+  }
+  const f=famSaved();
+  m.innerHTML=`<div class="card"><h2>1. 누구의 기도인가요?</h2>
+    <div class="two">
+      <label class="f"><span>가정 이름</span><input type="text" id="fam" maxlength="20" placeholder="예) 김민수네" value="${esc(f.family||'')}"></label>
+      <label class="f"><span>가정 암호 (숫자 4자리)</span><input type="tel" id="pin" inputmode="numeric" maxlength="4" placeholder="처음 정한 번호" value="${esc(f.pin||'')}"></label>
+    </div>
+    <div class="seg" style="margin-bottom:12px">
+      <button class="child ${U.kind==='child'?'on':''}" data-k="child">🧒 아이 기도</button>
+      <button class="parent ${U.kind==='parent'?'on':''}" data-k="parent">🧑 부모 기도</button>
+    </div>
+    <label class="f" style="margin:0"><span id="nmLbl">${U.kind==='child'?'아이':'부모님'} 이름</span><input type="text" id="nm" maxlength="20" placeholder="${U.kind==='child'?'예) 김하은':'예) 김민수'}" value="${esc(f[U.kind]||'')}"></label>
+    <p class="muted small" style="margin:10px 0 0">한 가정에서 <b>아이 기도 하나, 부모 기도 하나</b>를 올릴 수 있어요. 가정 암호는 처음 올릴 때 정해지고, 나중에 영상을 바꾸거나 지울 때 써요.</p>
+  </div>
+  <div class="card"><h2>2. 기도 영상</h2><div id="vbox"></div></div>
+  <div class="card"><button class="primary big" id="send" ${U.blob&&!U.busy?'':'disabled'}>🙏 기도 영상 올리기</button><div id="status"></div></div>
+  <input type="file" id="fileIn" accept="video/*" class="hide">`;
+  m.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{saveForm();U.kind=b.dataset.k;render();});
+  ['fam','pin','nm'].forEach(id=>$(id).addEventListener('change',saveForm));
+  $('fileIn').onchange=ev=>{const fl=ev.target.files[0];ev.target.value='';if(fl)pickFile(fl);};
+  $('send').onclick=send;
+  renderVbox();
+}
+function saveForm(){
+  const f=famSaved();
+  f.family=$('fam').value.trim();f.pin=$('pin').value.trim();f[U.kind]=$('nm').value.trim();
+  ls.set(FKEY,JSON.stringify(f));
+}
+function renderVbox(){
+  const v=$('vbox');if(!v)return;
+  if(U.blob){
+    v.innerHTML=`<div class="player"><video src="${U.url}" controls playsinline></video></div>
+      <div class="row" style="margin-top:10px"><span class="muted small grow">${U.src==='rec'?'앱에서 찍은 영상':'고른 영상'} · ${mb(U.blob.size)}</span><button class="sm" id="redo" ${U.busy?'disabled':''}>다시 고르기</button></div>`;
+    $('redo').onclick=()=>{clearVideo();renderVbox();updSend();};
+  }else if(U.file){
+    v.innerHTML=`<div class="note">고른 영상이 <b>${mb(U.file.size)}</b>라서 올리기엔 커요. 앱에서 크기를 줄여 드릴게요.<br>영상 길이만큼 시간이 걸리니 <b>화면을 켜 둔 채</b> 기다려 주세요.</div>
+      <div id="cbox" style="margin-top:10px"></div>
+      <div class="two" style="margin-top:10px"><button id="cCancel">다른 영상 고르기</button><button class="primary" id="cGo">크기 줄이기</button></div>`;
+    $('cCancel').onclick=()=>{U.file=null;renderVbox();};
+    $('cGo').onclick=doCompress;
+  }else{
+    v.innerHTML=`<div class="pick"><button id="shoot"><span class="i">📷</span>바로 찍기</button><button id="choose"><span class="i">📁</span>영상 고르기</button></div>
+      <p class="muted small" style="margin:10px 0 0">바로 찍기는 최대 ${MAX_REC/60}분, 고른 영상은 ${MAX_UP/60}분까지 올릴 수 있어요.</p>`;
+    $('shoot').onclick=openCam;
+    $('choose').onclick=()=>$('fileIn').click();
+  }
+}
+function updSend(){if($('send'))$('send').disabled=!U.blob||U.busy;}
+function setVideo(blob,src){
+  if(U.url)URL.revokeObjectURL(U.url);
+  U.blob=blob;U.url=URL.createObjectURL(blob);U.src=src;U.file=null;
+  renderVbox();updSend();
+}
+function clearVideo(){if(U.url)URL.revokeObjectURL(U.url);U.blob=null;U.url='';U.file=null;}
+function status(html){if($('status'))$('status').innerHTML=html;}
+
+function videoDuration(file){
+  return new Promise(res=>{
+    const v=document.createElement('video');v.preload='metadata';v.muted=true;
+    const u=URL.createObjectURL(file);
+    v.onloadedmetadata=()=>{
+      // 일부 webm은 길이가 Infinity로 나와서 끝으로 넘겨 확인
+      if(v.duration===Infinity){v.currentTime=1e9;v.ontimeupdate=()=>{v.ontimeupdate=null;URL.revokeObjectURL(u);res(v.duration);};}
+      else{URL.revokeObjectURL(u);res(v.duration);}
+    };
+    v.onerror=()=>{URL.revokeObjectURL(u);res(NaN);};
+    v.src=u;
+  });
+}
+async function pickFile(file){
+  status('');
+  if(!/^video\//.test(file.type)&&!/\.(mp4|mov|m4v|webm|3gp)$/i.test(file.name)){status('<div class="err">영상 파일만 올릴 수 있어요.</div>');return;}
+  const dur=await videoDuration(file);
+  if(dur>MAX_UP+1){status(`<div class="err">영상이 ${mmss(dur)}라서 길어요. ${MAX_UP/60}분 이하 영상으로 골라 주세요.</div>`);return;}
+  if(file.size<=LIMIT){setVideo(file,'file');return;}
+  if(!window.MediaRecorder||!HTMLCanvasElement.prototype.captureStream){status('<div class="err">이 브라우저에서는 큰 영상을 줄일 수 없어요. 앱에서 바로 찍거나 더 짧은 영상을 골라 주세요.</div>');return;}
+  U.file=file;renderVbox();
+}
+
+// 큰 영상: 화면에 재생하면서 캔버스+오디오로 다시 녹화해서 크기를 줄임
+async function doCompress(){
+  const file=U.file;if(!file)return;
+  const cb=$('cbox');$('cGo').disabled=true;
+  U.busy=true;
+  const v=document.createElement('video');
+  v.playsInline=true;v.src=URL.createObjectURL(file);
+  v.style.cssText='width:100%;max-height:40vh;border-radius:12px;background:#000';
+  cb.innerHTML='';cb.appendChild(v);
+  const bar=document.createElement('div');bar.className='bar';bar.innerHTML='<i></i>';cb.appendChild(bar);
+  const lbl=document.createElement('div');lbl.className='muted small';lbl.textContent='줄이는 중… 0%';cb.appendChild(lbl);
+  let ac;
+  try{
+    ac=new (window.AudioContext||window.webkitAudioContext)();
+    await new Promise((res,rej)=>{v.onloadedmetadata=res;v.onerror=()=>rej(new Error('영상을 열 수 없어요.'));});
+    const dur=v.duration;
+    const scale=Math.min(1,960/Math.max(v.videoWidth,v.videoHeight));
+    const cv=document.createElement('canvas');
+    cv.width=Math.round(v.videoWidth*scale/2)*2;cv.height=Math.round(v.videoHeight*scale/2)*2;
+    const ctx=cv.getContext('2d');
+    const vs=cv.captureStream(30);
+    const src=ac.createMediaElementSource(v),dest=ac.createMediaStreamDestination();src.connect(dest);
+    const stream=new MediaStream([...vs.getVideoTracks(),...dest.stream.getAudioTracks()]);
+    const vb=Math.max(250000,Math.min(1200000,Math.floor(LIMIT*8*0.85/dur)-64000));
+    const mime=pickMime();
+    const rec=new MediaRecorder(stream,mime?{mimeType:mime,videoBitsPerSecond:vb,audioBitsPerSecond:64000}:{videoBitsPerSecond:vb});
+    const parts=[];rec.ondataavailable=e=>{if(e.data.size)parts.push(e.data);};
+    const stopped=new Promise(r=>rec.onstop=r);
+    let drawing=true;
+    const draw=()=>{if(!drawing)return;ctx.drawImage(v,0,0,cv.width,cv.height);
+      if(v.requestVideoFrameCallback)v.requestVideoFrameCallback(draw);else requestAnimationFrame(draw);};
+    v.ontimeupdate=()=>{const p=Math.min(100,Math.round(v.currentTime/dur*100));bar.firstChild.style.width=p+'%';lbl.textContent=`줄이는 중… ${p}%  (${mmss(v.currentTime)} / ${mmss(dur)})`;};
+    await ac.resume();
+    rec.start(1000);
+    await v.play();
+    draw();
+    await new Promise(r=>v.onended=r);
+    drawing=false;rec.stop();await stopped;
+    const out=new Blob(parts,{type:(rec.mimeType||mime||'video/webm').split(';')[0]});
+    if(out.size>LIMIT)throw new Error(`줄여도 ${mb(out.size)}라서 올릴 수 없어요. 더 짧은 영상을 골라 주세요.`);
+    U.busy=false;
+    setVideo(out,'file');
+    status(`<div class="muted small" style="margin-top:8px">✓ ${mb(file.size)} → ${mb(out.size)}로 줄였어요.</div>`);
+  }catch(err){
+    U.busy=false;
+    cb.innerHTML=`<div class="err">${esc(err.message||'크기를 줄이지 못했어요.')}</div>`;
+    if($('cGo'))$('cGo').disabled=false;
+  }finally{
+    try{ac&&ac.close()}catch(e){}
+    URL.revokeObjectURL(v.src);
+  }
+}
+
+function toB64(blob){
+  return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]||'');r.onerror=()=>rej(r.error);r.readAsDataURL(blob);});
+}
+async function send(){
+  saveForm();
+  const family=$('fam').value.trim(),pin=$('pin').value.trim(),name=$('nm').value.trim(),kind=U.kind;
+  const bad=!family?'가정 이름을 써 주세요.':!/^\d{4}$/.test(pin)?'가정 암호는 숫자 4자리로 써 주세요.':!name?`${kind==='child'?'아이':'부모님'} 이름을 써 주세요.`:!U.blob?'영상을 찍거나 골라 주세요.':U.blob.size>LIMIT?'영상이 너무 커요.':'';
+  if(bad){status(`<div class="err">${bad}</div>`);return;}
+  U.busy=true;updSend();
+  status('<div class="muted small" style="margin-top:10px">가정 확인 중…</div>');
+  try{
+    const c=await api({a:'mine',family,pin});
+    if(!c.ok)throw new Error(c.msg);
+    const old=c.entries.find(x=>x.kind===kind);
+    if(old&&!confirm(`${family}의 ${KIND[kind]}(${old.name})가 이미 있어요. (${fmtD(old.date)})\n새 영상으로 바꿀까요? 날짜는 그대로예요.`)){U.busy=false;updSend();status('');return;}
+    if(c.isNew&&!confirm(`'${family}' 가정을 처음 등록해요.\n가정 암호 ${pin}을(를) 잊지 않게 기억해 주세요.`)){U.busy=false;updSend();status('');return;}
+    const t0=Date.now();
+    const tick=setInterval(()=>{const el=$('upSec');if(el)el.textContent=Math.round((Date.now()-t0)/1000)+'초';},1000);
+    status(`<div class="bar ind"><i></i></div><div class="muted small">${mb(U.blob.size)} 올리는 중… <span id="upSec">0초</span><br>창을 닫지 말고 기다려 주세요.</div>`);
+    try{
+      const data=await toB64(U.blob);
+      const r=await api({a:'upload',family,pin,kind,name,mime:U.blob.type||'video/mp4',data});
+      if(!r.ok)throw new Error(r.msg);
+      U.result=r.entry;
+    }finally{clearInterval(tick);}
+    U.busy=false;
+    await loadList();
+    render();
+  }catch(err){
+    U.busy=false;updSend();
+    status(`<div class="err">${esc(err.message&&!/fetch|network/i.test(err.message)?err.message:'올리지 못했어요. 인터넷 연결을 확인하고 다시 눌러 주세요.')}</div>`);
+  }
+}
+
+// ---------- 앱에서 바로 찍기 ----------
+let camStream=null,rec=null,recParts=[],recT=0,recTimer=null,facing='user';
+function pickMime(){
+  if(!window.MediaRecorder)return '';
+  return ['video/mp4;codecs=avc1,mp4a.40.2','video/mp4','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(t=>MediaRecorder.isTypeSupported(t))||'';
+}
+async function startStream(){
+  stopStream();
+  camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing,width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30}},audio:{echoCancellation:true,noiseSuppression:true}});
+  $('camVideo').srcObject=camStream;
+  $('camVideo').classList.toggle('mirror',facing==='user');
+}
+function stopStream(){if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null;}}
+async function openCam(){
+  status('');
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!window.MediaRecorder){
+    status('<div class="err">이 브라우저에서는 바로 찍기가 안 돼요. &lsquo;영상 고르기&rsquo;를 눌러 휴대폰 카메라로 찍어 주세요.</div>');return;
+  }
+  $('cam').classList.add('on');$('camTime').textContent='0:00';$('camTime').classList.remove('rec');
+  $('camHint').textContent='빨간 버튼을 누르면 촬영이 시작돼요';$('recBtn').classList.remove('rec');$('flipBtn').disabled=false;
+  try{await startStream();}
+  catch(e){closeCam();status('<div class="err">카메라를 켤 수 없어요. 카메라·마이크 사용을 허용해 주세요. 안 되면 &lsquo;영상 고르기&rsquo;로 휴대폰 카메라를 써 주세요.</div>');}
+}
+function closeCam(){
+  if(rec&&rec.state!=='inactive'){rec.onstop=null;rec.stop();}
+  rec=null;clearInterval(recTimer);stopStream();$('cam').classList.remove('on');
+}
+$('camClose').onclick=closeCam;
+$('flipBtn').onclick=async()=>{if(rec)return;facing=facing==='user'?'environment':'user';try{await startStream();}catch(e){facing=facing==='user'?'environment':'user';}};
+$('recBtn').onclick=()=>{
+  if(!camStream)return;
+  if(!rec){
+    const mime=pickMime();
+    recParts=[];
+    rec=new MediaRecorder(camStream,mime?{mimeType:mime,videoBitsPerSecond:1000000,audioBitsPerSecond:64000}:{videoBitsPerSecond:1000000});
+    rec.ondataavailable=e=>{if(e.data.size)recParts.push(e.data);};
+    rec.onstop=()=>{
+      const blob=new Blob(recParts,{type:(rec&&rec.mimeType||mime||'video/webm').split(';')[0]});
+      closeCam();
+      if(blob.size>LIMIT){status(`<div class="err">영상이 ${mb(blob.size)}라서 너무 커요. 조금 짧게 다시 찍어 주세요.</div>`);return;}
+      setVideo(blob,'rec');
+    };
+    rec.start(1000);recT=0;
+    $('recBtn').classList.add('rec');$('camTime').classList.add('rec');$('flipBtn').disabled=true;
+    $('camHint').textContent='기도를 마치면 버튼을 한 번 더 눌러 주세요';
+    recTimer=setInterval(()=>{recT++;$('camTime').textContent=mmss(recT)+' / '+mmss(MAX_REC);if(recT>=MAX_REC&&rec){clearInterval(recTimer);rec.stop();}},1000);
+  }else{clearInterval(recTimer);rec.stop();}
+};
+
+// ---------- 우리 가정 ----------
+let MINE=null;
+function renderMine(m){
+  const f=famSaved();
+  m.innerHTML=`<div class="card"><h2>우리 가정 기도 영상</h2>
+    <div class="two"><label class="f"><span>가정 이름</span><input type="text" id="mf" maxlength="20" value="${esc(f.family||'')}"></label>
+    <label class="f"><span>가정 암호</span><input type="tel" id="mp" inputmode="numeric" maxlength="4" value="${esc(f.pin||'')}"></label></div>
+    <button class="primary big" id="mGo">확인</button><div id="mOut"></div></div>
+    <div class="card muted small">가정 암호를 잊었다면 관리하시는 분께 말씀해 주세요. <button class="sm" id="toAdmin" style="float:right">⚙ 관리</button></div>`;
+  $('toAdmin').onclick=()=>go('admin');
+  const show=()=>{
+    const o=$('mOut');if(!MINE){o.innerHTML='';return;}
+    if(MINE.err){o.innerHTML=`<div class="err">${esc(MINE.err)}</div>`;return;}
+    const rows=['child','parent'].map(k=>{
+      const e=MINE.list.find(x=>x.kind===k);
+      return `<li><div class="grow">${badge(k)} ${e?`<b>${esc(e.name)}</b><div class="muted small">${fmtD(e.date)} ${e.date===TODAY?'· 오늘!':e.date<TODAY?'· 지나감':'· 예정'}</div>`:'<span class="muted">아직 안 올렸어요</span>'}</div>
+        ${e?`<button class="sm danger" data-del="${e.id}">지우기</button>`:`<button class="sm" data-up="${k}">올리기</button>`}</li>`;
+    }).join('');
+    o.innerHTML=`<ul class="list" style="margin-top:12px">${rows}</ul><p class="muted small">영상을 바꾸려면 &lsquo;영상 올리기&rsquo;에서 같은 가정·같은 종류로 다시 올리면 돼요. 날짜는 그대로예요.</p>`;
+    o.querySelectorAll('[data-up]').forEach(b=>b.onclick=()=>{U.kind=b.dataset.up;go('up');});
+    o.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
+      if(!confirm('이 기도 영상을 지울까요? 되돌릴 수 없어요.'))return;
+      b.disabled=true;
+      const r=await api({a:'del',id:b.dataset.del,family:MINE.family,pin:MINE.pin}).catch(()=>({ok:false,msg:'연결 실패'}));
+      if(!r.ok){alert(r.msg);b.disabled=false;return;}
+      await loadList();await check();
+    });
+  };
+  const check=async()=>{
+    const family=$('mf').value.trim(),pin=$('mp').value.trim();
+    if(!family||!/^\d{4}$/.test(pin)){MINE={err:'가정 이름과 숫자 4자리 암호를 써 주세요.'};show();return;}
+    $('mGo').disabled=true;
+    const r=await api({a:'mine',family,pin}).catch(()=>({ok:false,msg:'서버에 연결하지 못했어요.'}));
+    $('mGo').disabled=false;
+    if(!r.ok){MINE={err:r.msg};show();return;}
+    if(r.isNew){MINE={err:'아직 등록되지 않은 가정이에요. 영상을 올리면 이 이름과 암호로 등록돼요.'};show();return;}
+    const sf=famSaved();sf.family=family;sf.pin=pin;ls.set(FKEY,JSON.stringify(sf));
+    MINE={family,pin,list:r.entries};show();
+  };
+  $('mGo').onclick=check;
+  if(MINE&&MINE.list&&MINE.family===f.family)show();
+}
+
+// ---------- 관리 ----------
+function renderAdmin(m){
+  if(!ADMIN_PW){
+    m.innerHTML=`<div class="card"><h2>⚙ 관리</h2><p class="muted small">${HAS_PW?'관리자 암호를 넣어 주세요.':'처음이에요. 관리자 암호를 정해 주세요 (4자 이상).'}</p>
+      <label class="f"><input type="password" id="apw" placeholder="관리자 암호"></label>
+      ${HAS_PW?'':'<label class="f"><input type="password" id="apw2" placeholder="한 번 더"></label>'}
+      <button class="primary big" id="aGo">들어가기</button><div id="aOut"></div></div>`;
+    $('aGo').onclick=async()=>{
+      const pw=$('apw').value;
+      if(!HAS_PW&&pw!==$('apw2').value){$('aOut').innerHTML='<div class="err">두 암호가 달라요.</div>';return;}
+      const r=await api({a:HAS_PW?'check':'setpw',pw}).catch(()=>({ok:false,msg:'연결 실패'}));
+      if(!r.ok){$('aOut').innerHTML=`<div class="err">${esc(r.msg)}</div>`;return;}
+      HAS_PW=true;ADMIN_PW=pw;ls.set(PKEY,pw);render();
+    };
+    return;
+  }
+  const rows=ENTRIES.map(e=>`<li><div class="dt"><b>${e.date.slice(5).replace('-','/')}</b>${WD[dObj(e.date).getDay()]}</div>
+    <div class="grow">${badge(e.kind)} <b>${esc(e.name)}</b><div class="muted small">${esc(e.family)}</div></div>
+    <button class="sm" data-mv="${e.id}" data-d="${e.date}">날짜</button><button class="sm danger" data-del="${e.id}">지우기</button></li>`).join('');
+  m.innerHTML=`<div class="card"><div class="row"><h2 class="grow" style="margin:0">⚙ 관리</h2><button class="sm" id="aOut2">나가기</button></div>
+    <p class="muted small">모두 ${ENTRIES.length}개 · 날짜를 바꾸면 그 날짜에 있던 영상과 서로 맞바꿔요.</p>
+    <ul class="list">${rows||'<li class="muted">영상이 없어요.</li>'}</ul></div>
+    <div class="card"><h2>가정 암호 초기화</h2><div class="row"><input type="text" id="rf" class="grow" placeholder="가정 이름" style="width:auto"><button id="rGo">초기화</button></div>
+    <p class="muted small">초기화하면 그 가정이 다음에 올릴 때 새 암호를 정할 수 있어요.</p></div>
+    <div class="card row"><button id="chpw">관리자 암호 바꾸기</button><button id="apiBtn">서버 주소 바꾸기</button></div>`;
+  $('aOut2').onclick=()=>{ADMIN_PW='';ls.del(PKEY);go('mine');};
+  const run=async(body)=>{const r=await api({...body,pw:ADMIN_PW}).catch(()=>({ok:false,msg:'연결 실패'}));if(!r.ok)alert(r.msg);return r;};
+  m.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!confirm('지울까요?'))return;b.disabled=true;await run({a:'del',id:b.dataset.del});await loadList();render();});
+  m.querySelectorAll('[data-mv]').forEach(b=>b.onclick=async()=>{
+    const d=prompt('새 날짜 (예: 2026-11-03)',b.dataset.d);if(!d||d===b.dataset.d)return;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(d)){alert('2026-11-03 처럼 써 주세요.');return;}
+    const r=await run({a:'move',id:b.dataset.mv,date:d});if(r.ok&&r.swapped)alert(`${r.swapped}의 기도와 날짜를 맞바꿨어요.`);
+    await loadList();render();
+  });
+  $('rGo').onclick=async()=>{const f=$('rf').value.trim();if(!f)return;if(!confirm(`'${f}' 가정 암호를 초기화할까요?`))return;const r=await run({a:'resetpin',family:f});if(r.ok)alert('초기화했어요.');};
+  $('chpw').onclick=async()=>{const a=prompt('새 관리자 암호 (4자 이상)');if(!a)return;if(prompt('한 번 더')!==a){alert('두 암호가 달라요.');return;}
+    const r=await run({a:'chpw',newPw:a});if(r.ok){ADMIN_PW=a;ls.set(PKEY,a);alert('바꿨어요.');}};
+  $('apiBtn').onclick=()=>{const a=prompt('Apps Script 웹 앱 주소',API);if(a&&/^https:\/\/script\.google\.com\//.test(a.trim())){API=a.trim();ls.set(AKEY,API);LOADED=false;init();}};
+}
+
+// ---------- 처음 설정 ----------
+function setupView(){
+  return `<div class="card"><h2>서버 연결이 필요해요</h2>
+  <div class="note">처음 한 번만 하면 돼요.<ol style="margin:6px 0 0;padding-left:20px">
+  <li>script.google.com 에서 새 프로젝트를 만들고 <b>prayer/gas/Code.gs</b> 내용을 붙여 넣어요.</li>
+  <li>편집기에서 <b>setup</b> 함수를 한 번 실행해 드라이브 권한을 허락해요.</li>
+  <li>배포 → 새 배포 → 웹 앱, 실행: <b>나</b>, 액세스: <b>모든 사용자</b>로 배포해요.</li>
+  <li>나온 웹 앱 주소를 아래에 붙여 넣어요. (모두가 쓰려면 index.html의 API_DEFAULT에 넣어 주세요.)</li></ol></div>
+  <label class="f" style="margin-top:12px"><input type="text" id="apiIn" placeholder="https://script.google.com/macros/s/…/exec"></label>
+  <button class="primary big" id="apiGo">연결하기</button></div>`;
+}
+function bindSetup(){
+  $('apiGo').onclick=()=>{const a=$('apiIn').value.trim();if(!/^https:\/\/script\.google\.com\//.test(a)){alert('script.google.com 으로 시작하는 주소를 넣어 주세요.');return;}
+    API=a;ls.set(AKEY,a);init();};
+}
+
+function go(t){
+  if(U.busy&&t!=='up'&&!confirm('올리는 중이에요. 다른 화면으로 가면 멈출 수 있어요. 갈까요?'))return;
+  tab=t;render();scrollTo(0,0);
+}
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{if(b.dataset.t==='today')viewDate=null;go(b.dataset.t);});
+async function init(){render();await loadList();render();}
+// 날짜가 바뀌거나 다시 열었을 때 새로 불러오기
+document.addEventListener('visibilitychange',async()=>{if(document.visibilityState==='visible'&&API&&!U.busy&&!$('cam').classList.contains('on')){await loadList();if(tab==='today'||tab==='cal')render();}});
+init();
+</script>
+</body>
+</html>

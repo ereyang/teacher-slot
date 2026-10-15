@@ -1,0 +1,10 @@
+{
+  "name": "오늘의 기도",
+  "short_name": "오늘의 기도",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fdf8f1",
+  "theme_color": "#f3a64a",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
