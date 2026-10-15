@@ -305,6 +305,7 @@ const ITEMS=[
  {id:'table',label:'table',ko:'탁자',names:['coffee table','table'],w:1.1,d:0.65,h:0.45,top:0.45,under:0.38,holds:true},
  {id:'bookshelf',label:'bookshelf',ko:'책장',names:['bookshelves','bookshelf','bookcase','shelves','shelf'],w:1.2,d:0.4,h:1.9,top:1.9,under:0,holds:true,back:true,
    shelves:[{y:1.30,x1:-0.55,x2:0.55},{y:0.67,x1:0.0,x2:0.55},{y:0.04,x1:0.04,x2:0.55}]},
+ {id:'wardrobe',label:'wardrobe',ko:'옷장',names:['wardrobe','closet','cupboard'],w:1.2,d:0.6,h:2.0,top:2.0,under:0,holds:true,back:true},
  {id:'tv',label:'TV',ko:'텔레비전',names:['television','tv'],w:1.1,d:0.22,h:0.72,holds:false,back:true},
  {id:'rug',label:'rug',ko:'러그',names:['rug','carpet'],w:2.4,d:1.6,h:0.02,top:0.02,under:0.07,holds:true,flat:true},
  {id:'lamp',label:'lamp',ko:'램프',names:['lamp'],w:0.32,d:0.32,h:0.55,holds:false},
@@ -574,6 +575,7 @@ function sIn(S,R){
     }
     return err('The bookshelf is full.','책장이 꽉 찼어요.');
   }
+  if(T.id==='wardrobe') return err(`The wardrobe doors are closed. Try "on", "next to" or "in front of" the wardrobe.`,'옷장 문이 닫혀 있어요. on, next to, in front of 를 써 보세요.');
   if(['bed','sofa','chair','rug'].includes(T.id)) return sOn(S,R);
   return err(`Things can't go in the ${T.label}. Try "on" or "under".`,`${T.ko} 안에는 넣을 수 없어요. "on"이나 "under"를 써 보세요.`);
 }
@@ -979,6 +981,14 @@ const BUILD={
     bx(g,1.1,.05,.65,'#6E4B33',0,.4,0);
     for(const sx of [-.47,.47]) for(const sz of [-.25,.25]) cy(g,.025,.025,.4,'#4A3222',sx,0,sz,10);
   },
+  wardrobe(g){
+    const c='#A9774F', c2='#BC8A60';
+    for(const sx of [-.54,.54]) for(const sz of [-.24,.24]) bx(g,.06,.08,.06,'#5C3B24',sx,0,sz);
+    bx(g,1.2,1.84,.6,c,0,.08,0);
+    bx(g,1.26,.08,.66,'#8E6040',0,1.92,0);
+    for(const px of [-.3,.3]) bx(g,.58,1.74,.02,c2,px,.13,.305);
+    for(const px of [-.05,.05]) bx(g,.025,.22,.03,'#D4AF37',px,.95,.325,{metalness:.6,roughness:.3});
+  },
   bookshelf(g){
     const c='#D8C29E';
     for(const sx of [-.58,.58]) bx(g,.04,1.9,.4,c,sx,0,0);
@@ -1053,8 +1063,8 @@ const BUILD={
 };
 
 /* Staging tray */
-const ROW1=['bed','sofa','desk','chair','table','bookshelf','tv','rug'], ROW2=['lamp','plant','box','ball','cat','book','picture','clock'];
-[ROW1,ROW2].forEach((row,ri)=>row.forEach((id,i)=>{const it=byId[id]; it.sx=-4.375+i*1.25; it.sz=ri?6.95:5.95; it.ss=Math.min(0.75,1.05/Math.max(it.w,it.d),0.95/it.h);}));
+const ROW1=['bed','wardrobe','sofa','desk','chair','table','bookshelf','tv','rug'], ROW2=['lamp','plant','box','ball','cat','book','picture','clock'];
+[ROW1,ROW2].forEach((row,ri)=>row.forEach((id,i)=>{const it=byId[id]; it.sx=-4.4+i*8.8/(row.length-1); it.sz=ri?6.95:5.95; it.ss=Math.min(0.75,1.05/Math.max(it.w,it.d),0.95/it.h);}));
 
 const pickables=[];
 ITEMS.forEach(it=>{
@@ -1230,9 +1240,8 @@ $('#cmd').addEventListener('submit',e=>{
 $('#undo').addEventListener('click',()=>{const s=undoStack.pop(); if(!s) return; restore(s); syncAll(); refreshUI(); toastEl.hidden=true; missionAfterChange();});
 $('#reset').addEventListener('click',()=>{
   if(mode==='mission'){missionRestart(); return;}
-  if(!ITEMS.some(i=>i.placed)) return;
   undoStack.push(snapshot());
-  ITEMS.forEach(it=>Object.assign(it,{placed:false,restOn:null,mounted:false,wall:null,float:false,rot:0}));
+  restore(defaultSnap);
   syncAll(); refreshUI(); toastEl.hidden=true;
 });
 $('#view').addEventListener('click',()=>{userMoved=false; fitCamera();});
@@ -1268,7 +1277,8 @@ const EXAMPLES=[
  'The chair is in front of the desk.','The cat is under the bed.','The picture is above the bed.',
  'The rug is in the middle of the room.','The sofa is against the left wall.','The table is on the rug.',
  'The TV is on the table.','The ball is in the box.','The plant is between the sofa and the bookshelf.',
- 'The book is in the bookshelf.','The clock is on the wall next to the window.','The box is behind the sofa.','The ball is above the table.'
+ 'The book is in the bookshelf.','The clock is on the wall next to the window.','The box is behind the sofa.','The ball is above the table.',
+ 'The box is on the wardrobe.','The cat is next to the wardrobe.','The lamp is between the bookshelf and the desk.'
 ];
 let exStart=0;
 function renderExamples(){
@@ -1291,35 +1301,34 @@ renderExamples(); renderPreview(); refreshUI();
    sentences ("Put the lamp on the desk", "The lamp is on top of the desk") pass too. */
 const MISSIONS=[
  {title:'Study Desk',ko:'공부 책상',setup:[],goals:[
-  {s:'desk',rel:'wall',side:'back',en:'The desk is against the back wall.',ko:'책상 → 뒷벽에 붙여서'},
   {s:'chair',rel:'front',t:'desk',en:'The chair is in front of the desk.',ko:'의자 → 책상 앞'},
-  {s:'lamp',rel:'on',t:'desk',en:'The lamp is on the desk.',ko:'램프 → 책상 위'}]},
- {title:'Cat Nap',ko:'고양이 낮잠',setup:['Put the bed in the back left corner.'],goals:[
-  {s:'cat',rel:'under',t:'bed',en:'The cat is under the bed.',ko:'고양이 → 침대 아래'},
-  {s:'ball',rel:'next',t:'bed',en:'The ball is next to the bed.',ko:'공 → 침대 옆'},
-  {s:'rug',rel:'middle',en:'The rug is in the middle of the room.',ko:'러그 → 방 가운데'},
-  {s:'table',rel:'on',t:'rug',en:'The table is on the rug.',ko:'탁자 → 러그 위'}]},
+  {s:'lamp',rel:'on',t:'desk',en:'The lamp is on the desk.',ko:'램프 → 책상 위'},
+  {s:'book',rel:'on',t:'desk',en:'The book is on the desk.',ko:'책 → 책상 위'}]},
+ {title:'Bedroom',ko:'침실',setup:[],goals:[
+  {s:'cat',rel:'on',t:'bed',en:'The cat is on the bed.',ko:'고양이 → 침대 위'},
+  {s:'ball',rel:'under',t:'bed',en:'The ball is under the bed.',ko:'공 → 침대 아래'},
+  {s:'box',rel:'on',t:'wardrobe',en:'The box is on the wardrobe.',ko:'상자 → 옷장 위'},
+  {s:'clock',rel:'above',t:'bed',en:'The clock is above the bed.',ko:'시계 → 침대 위쪽 벽'}]},
  {title:'Living Room',ko:'거실',setup:[],goals:[
-  {s:'sofa',rel:'wall',side:'back',en:'The sofa is against the back wall.',ko:'소파 → 뒷벽에 붙여서'},
-  {s:'table',rel:'front',t:'sofa',en:'The table is in front of the sofa.',ko:'탁자 → 소파 앞'},
-  {s:'plant',rel:'right',t:'sofa',en:'The plant is to the right of the sofa.',ko:'화분 → 소파 오른쪽'},
-  {s:'picture',rel:'above',t:'sofa',en:'The picture is above the sofa.',ko:'그림 → 소파 위쪽 벽'}]},
- {title:'Book Corner',ko:'책 읽는 곳',setup:['The bookshelf is against the back wall.'],goals:[
+  {s:'rug',rel:'middle',en:'The rug is in the middle of the room.',ko:'러그 → 방 가운데'},
+  {s:'table',rel:'on',t:'rug',en:'The table is on the rug.',ko:'탁자 → 러그 위'},
+  {s:'sofa',rel:'front',t:'table',en:'The sofa is in front of the table.',ko:'소파 → 탁자 앞'},
+  {s:'plant',rel:'left',t:'sofa',en:'The plant is to the left of the sofa.',ko:'화분 → 소파 왼쪽'}]},
+ {title:'Book Corner',ko:'책 읽는 곳',setup:[],goals:[
   {s:'book',rel:'in',t:'bookshelf',en:'The book is in the bookshelf.',ko:'책 → 책장 안'},
   {s:'clock',rel:'above',t:'bookshelf',en:'The clock is above the bookshelf.',ko:'시계 → 책장 위쪽 벽'},
   {s:'box',rel:'left',t:'bookshelf',en:'The box is to the left of the bookshelf.',ko:'상자 → 책장 왼쪽'},
   {s:'ball',rel:'in',t:'box',en:'The ball is in the box.',ko:'공 → 상자 안'}]},
- {title:'In Between',ko:'사이에',setup:['Put the bed in the back left corner.'],goals:[
-  {s:'desk',rel:'wall',side:'right',en:'The desk is against the right wall.',ko:'책상 → 오른쪽 벽에 붙여서'},
-  {s:'chair',rel:'between',t:['bed','desk'],en:'The chair is between the bed and the desk.',ko:'의자 → 침대와 책상 사이'},
-  {s:'cat',rel:'on',t:'bed',en:'The cat is on the bed.',ko:'고양이 → 침대 위'},
-  {s:'ball',rel:'under',t:'chair',en:'The ball is under the chair.',ko:'공 → 의자 아래'}]},
+ {title:'In Between',ko:'사이에',setup:[],goals:[
+  {s:'cat',rel:'between',t:['bed','wardrobe'],en:'The cat is between the bed and the wardrobe.',ko:'고양이 → 침대와 옷장 사이'},
+  {s:'plant',rel:'between',t:['bed','bookshelf'],en:'The plant is between the bed and the bookshelf.',ko:'화분 → 침대와 책장 사이'},
+  {s:'lamp',rel:'between',t:['bookshelf','desk'],en:'The lamp is between the bookshelf and the desk.',ko:'램프 → 책장과 책상 사이'},
+  {s:'ball',rel:'under',t:'desk',en:'The ball is under the desk.',ko:'공 → 책상 아래'}]},
  {title:'By the Window',ko:'창가',setup:[],goals:[
-  {s:'table',rel:'underWin',en:'The table is under the window.',ko:'탁자 → 창문 아래'},
-  {s:'plant',rel:'on',t:'table',en:'The plant is on the table.',ko:'화분 → 탁자 위'},
-  {s:'picture',rel:'leftWin',en:'The picture is to the left of the window.',ko:'그림 → 창문 왼쪽 벽'},
-  {s:'sofa',rel:'front',t:'table',en:'The sofa is in front of the table.',ko:'소파 → 탁자 앞'},
-  {s:'lamp',rel:'right',t:'sofa',en:'The lamp is to the right of the sofa.',ko:'램프 → 소파 오른쪽'}]},
+  {s:'plant',rel:'on',t:'desk',en:'The plant is on the desk.',ko:'화분 → 책상 위'},
+  {s:'clock',rel:'rightWin',en:'The clock is to the right of the window.',ko:'시계 → 창문 오른쪽 벽'},
+  {s:'rug',rel:'front',t:'desk',en:'The rug is in front of the desk.',ko:'러그 → 책상 앞'},
+  {s:'chair',rel:'on',t:'rug',en:'The chair is on the rug.',ko:'의자 → 러그 위'}]},
 ];
 
 /* Goal checks (viewer faces the back wall: left = -x, front = +z) */
@@ -1352,6 +1361,7 @@ function goalMet(g){
     case 'wall': {const m=.15; return !S.mounted&&S.y<.05&&!!{back:a.z1<-W+m,front:a.z2>W-m,left:a.x1<-W+m,right:a.x2>W-m}[g.side];}
     case 'middle': return Math.abs(S.x)<1&&Math.abs(S.z)<1&&S.y<.05;
     case 'underWin': return !S.mounted&&a.z1<-W+.6&&Math.abs(S.x-WIN.x)<WIN.w/2+.3&&S.y+S.h<=WIN.y1+.02;
+    case 'rightWin': return S.mounted&&S.wall==='back'&&a.x1>=WIN.x+WIN.w/2-.05&&a.x1-(WIN.x+WIN.w/2)<1.2;
     case 'leftWin': return S.mounted&&S.wall==='back'&&a.x2<=WIN.x-WIN.w/2+.05&&WIN.x-WIN.w/2-a.x2<1.2;
   }
   return false;
@@ -1406,10 +1416,17 @@ function saveCleared(){try{localStorage.setItem('prepRoom.cleared',JSON.stringif
 const thumb=$('#targetThumb'), big=$('#targetBig');
 
 function clearRoom(){ITEMS.forEach(it=>Object.assign(it,{placed:false,restOn:null,mounted:false,wall:null,float:false,rot:0}));}
+/* Starting room: big furniture already in place, so students have things to use as reference points */
+const DEFAULT_SETUP=['Put the bed in the back left corner.','The wardrobe is against the left wall.','The desk is under the window.','The bookshelf is against the back wall.'];
+function defaultRoom(){
+  clearRoom();
+  DEFAULT_SETUP.forEach(t=>{const r=runSentence(t); if(!r.ok) console.warn('Default setup failed:',t,r.err);});
+  undoStack.length=0;
+}
 function loadMission(i){
   mi=i; mHint=0; mDone=false; mCount=0;
   const M=MISSIONS[i];
-  clearRoom();
+  defaultRoom();
   M.setup.forEach(t=>{const r=runSentence(t); if(!r.ok) console.warn('Mission setup failed:',t,r.err);});
   mStart=snapshot();
   M.goals.forEach(g=>{const r=runSentence(g.en); if(!r.ok) console.warn('Mission answer failed:',g.en,r.err);});
@@ -1493,6 +1510,10 @@ big.addEventListener('click',()=>{big.hidden=true;});
 $('#mHint').addEventListener('click',()=>{mHint=(mHint+1)%3; renderMission();});
 $('#mRestart').addEventListener('click',missionRestart);
 $('#mNext').addEventListener('click',()=>loadMission((mi+1)%MISSIONS.length));
+defaultRoom();
+const defaultSnap=snapshot();
+ITEMS.forEach(it=>{const t=targetOf(it), m=it.mesh; m.position.set(t.x,t.y,t.z); m.scale.setScalar(t.s); m.rotation.y=t.r;});
+refreshUI();
 window.__prep={MISSIONS,goalMet,loadMission,setMode,runSentence,byId};
 })();
 </script>
