@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>학력평가 시간표 교체</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 :root{--bg:#f6f7f9;--card:#fff;--ink:#1d2433;--muted:#6b7280;--line:#e3e6eb;--accent:#2f6fde;--ok:#16a34a;--okbg:#e8f7ee;--no:#dc2626;--nobg:#fdecec;--hl:#fff4c2;--new:#dcfce7;--rm:#f3f4f6;--room:#f4f1ff}
 *{box-sizing:border-box}
@@ -124,6 +125,13 @@ del{color:var(--no)}
 </section>
 
 <section class="card need adm">
+  <div class="row" style="justify-content:space-between"><h2 style="margin:0">①-3 감독시간표 (한글 HWPX)</h2>
+    <div class="row"><input type="file" id="gdFile" accept=".hwpx" style="display:none"><button class="primary" id="gdUp">📤 감독시간표 올리기</button></div></div>
+  <p class="muted" style="margin:6px 0 0" id="gdStatus"></p>
+  <div id="gdBox" style="margin-top:8px"></div>
+</section>
+
+<section class="card need adm">
   <h2>② 학력평가 요일 · 학년 지정</h2>
   <div class="row">
     <span>요일</span><div class="seg" id="daySeg"></div>
@@ -222,7 +230,7 @@ const isGroup=s=>/^[A-Z][0-9]$/.test(s);
 const save=()=>{store(SKEY,S);queue('state');};
 // ---------- 서버(구글 Apps Script) ----------
 const API='https://script.google.com/macros/s/AKfycbxMtUz4fyUIYHKaAHzin_8TubWSy3WZGtWCzVaF5SxauugeE_ni2deZyxs4mdrkrLZo9Q/exec';
-const PKEY='examSwap.pw';
+const PKEY='examSwap.pw',GKEY='examSwap.gamdok.v1';
 const SHARED=['day','grades','edits','hr'];   // 모두가 같이 보는 설정 (onlyExam·picks는 각자)
 let ADMIN=false,PW='',HAS_PW=false,UPDATED='',pending=new Set(),pushTimer=null;
 function setSync(t){$('sync').textContent=t;}
@@ -238,6 +246,7 @@ async function push(){
   pending.forEach(k=>{
     if(k==='data')set.data=DATA;
     if(k==='hr')set.hr=HR;
+    if(k==='gamdok')set.gamdok=GAMDOK;
     if(k==='state'){const o={};SHARED.forEach(x=>o[x]=S[x]);set.state=o;}
   });
   pending.clear();
@@ -256,6 +265,7 @@ async function loadServer(){
     if(r.data){DATA=r.data;store(KEY,DATA);}
     if(r.state){SHARED.forEach(x=>{if(r.state[x]!==undefined)S[x]=r.state[x];});store(SKEY,S);}
     if(r.hr){HR=r.hr;store(HKEY,HR);}
+    GAMDOK=r.gamdok||null;store(GKEY,GAMDOK);
     setSync(UPDATED?'마지막 업데이트 '+fmtTime(UPDATED):'');
     return r;
   }catch(e){setSync('⚠ 서버 연결 실패 — 이 기기에 저장된 내용 표시');return null;}
@@ -283,7 +293,7 @@ $('modeBtn').onclick=async()=>{
   setMode(true);
   const r=await loadServer();
   // 서버가 비어 있고 이 기기에 시간표가 있으면 올려 두기
-  if(r&&!r.data&&DATA)queue('data','state','hr');
+  if(r&&!r.data&&DATA)queue('data','state','hr','gamdok');
   render();
 };
 $('pwBtn').onclick=async()=>{
@@ -406,7 +416,7 @@ function render(){
   if(!DATA.days.includes(S.day))S.day=DATA.days[0];
   build();
   drawGenInfo();
-  drawHR();drawSettings();drawRemoved();drawGrid();drawTList();drawTView();drawMulti();
+  drawHR();drawGamdok();drawSettings();drawRemoved();drawGrid();drawTList();drawTView();drawMulti();
   if(ED)drawEditor();
 }
 function drawGenInfo(){
@@ -535,7 +545,7 @@ function drawTList(){
 $('tq').oninput=()=>drawTList();
 function drawTView(){
   if(!selT){$('tview').innerHTML='<div class="empty">선생님을 고르세요.</div>';return;}
-  $('tview').innerHTML=`<div class="row" style="justify-content:space-between;margin-bottom:6px"><b>${esc(selT)} 선생님</b><span class="muted">${S.day}요일 ${origHours(selT)}→${examHours(selT)}시간</span></div>`+personalHTML(selT);
+  $('tview').innerHTML=`<div class="row" style="justify-content:space-between;margin-bottom:6px"><b>${esc(selT)} 선생님</b><span class="muted">${S.day}요일 ${origHours(selT)}→${examHours(selT)}시간</span></div>`+personalHTML(selT)+gamdokHTML(selT);
 }
 
 // ---------- 칸 편집 ----------
@@ -618,7 +628,7 @@ function doPrint(html,landscape){
 const examNote=()=>`학력평가: ${S.day}요일 ${S.grades.join('·')}학년`;
 $('printDay').onclick=()=>doPrint(`<div class="pg"><h3 style="margin:0 0 4px;text-align:center">전체시간표</h3>${gridHTML([S.day],S.onlyExam,true)}<div style="margin-top:6px;font-size:11px">${changesHTML()}</div></div>`,true);
 $('printWeek').onclick=()=>doPrint(`<div class="pg"><h3 style="margin:0 0 4px;text-align:center">전체시간표</h3>${gridHTML(DATA.days,S.onlyExam,true)}</div>`,true);
-const pbox=n=>`<div class="pbox"><h3 style="margin:0 0 4px;text-align:center">${esc(n)} 선생님 시간표</h3>${personalHTML(n)}</div>`;
+const pbox=n=>`<div class="pbox"><h3 style="margin:0 0 4px;text-align:center">${esc(n)} 선생님 시간표</h3>${personalHTML(n)}${gamdokHTML(n)}</div>`;
 function printTeachers(list){
   if(!list.length){alert('출력할 선생님이 없어요.');return;}
   let h='';for(let i=0;i<list.length;i+=2)h+=`<div class="pg">${list.slice(i,i+2).map(pbox).join('')}</div>`;
@@ -743,6 +753,7 @@ function multiSheet(list){
 $('xlsMulti').onclick=()=>{
   const list=picked();if(!list.length){alert('선생님을 먼저 고르세요.');return;}
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,multiSheet(list),S.day+'요일 선생님');
+  if(GAMDOK)XLSX.utils.book_append_sheet(wb,gamdokSheet(list),'감독시간표');
   XLSX.writeFile(wb,`선생님시간표_${S.day}요일_학력평가.xlsx`);
 };
 // 전체시간표(평가 요일) + 선생님 시간표를 시트 2개로 한 파일에
@@ -751,6 +762,7 @@ $('xlsBoth').onclick=()=>{
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,gridSheet([S.day]),S.day+'요일 전체시간표');
   XLSX.utils.book_append_sheet(wb,multiSheet(list),S.day+'요일 선생님');
+  if(GAMDOK)XLSX.utils.book_append_sheet(wb,gamdokSheet(list),'감독시간표');
   XLSX.writeFile(wb,`학력평가_${S.day}요일_전체+선생님시간표.xlsx`);
 };
 
@@ -871,8 +883,145 @@ function teacherTemplate(){
 }
 $('tplFull').onclick=()=>XLSX.writeFile(fullTemplate(),'전체시간표_양식.xlsx');
 $('tplTeacher').onclick=()=>XLSX.writeFile(teacherTemplate(),'교사시간표_양식.xlsx');
+// HWPX(한글) 본문 XML → 표 목록. 각 표는 2차원 배열(병합 칸은 같은 글자로 채움)
+function hwpxTables(xml,DP){
+  const doc=new (DP||DOMParser)().parseFromString(xml,'application/xml');
+  const kids=(el,name)=>Array.from(el.childNodes).filter(n=>n.nodeType===1&&n.localName===name);
+  const textOf=el=>{ // 안쪽 표는 빼고 글자만
+    let out=[];
+    const walk=(n,para)=>{
+      Array.from(n.childNodes).forEach(c=>{
+        if(c.nodeType!==1)return;
+        if(c.localName==='tbl')return;
+        if(c.localName==='p'){const a=[];walk(c,a);out.push(a.join(''));return;}
+        if(c.localName==='t'){para&&para.push(c.textContent);return;}
+        walk(c,para);
+      });
+    };
+    walk(el,null);
+    return out.join('\n').trim();
+  };
+  const all=Array.from(doc.getElementsByTagName('*')).filter(n=>n.localName==='tbl');
+  return all.map(tbl=>{
+    const grid=[];
+    kids(tbl,'tr').forEach(tr=>kids(tr,'tc').forEach(tc=>{
+      const a=kids(tc,'cellAddr')[0],sp=kids(tc,'cellSpan')[0];
+      if(!a)return;
+      const c=+a.getAttribute('colAddr'),r=+a.getAttribute('rowAddr');
+      const cs=sp?+sp.getAttribute('colSpan'):1,rs=sp?+sp.getAttribute('rowSpan'):1;
+      const txt=textOf(tc);
+      for(let i=0;i<rs;i++)for(let j=0;j<cs;j++)(grid[r+i]=grid[r+i]||[])[c+j]=txt;
+    }));
+    return grid.map(r=>Array.from(r||[],v=>v||''));
+  });
+}
+
+// ---------- 감독시간표 (한글 HWPX) ----------
+// GAMDOK={file,saved,title,groups:[{grades:['1','2'],title,slots:[{type:'period'|'hr'|'guide',p,time,exam,note}]}]}
+let GAMDOK=null;
+function parseGamdok(tables){
+  const groups=[];let lastTitle='';
+  tables.forEach(t=>{
+    const flat=t.map(r=>r.join(' ')).join(' ');
+    if(/운영/.test(flat)&&t.length<=3){lastTitle=(t.flat().find(v=>/운영/.test(v))||'').trim();return;}
+    const h=t.findIndex(r=>r.some(v=>v.replace(/\s/g,'')==='감독교사'));
+    if(h<0)return;
+    const cW=t[h].findIndex(v=>v.replace(/\s/g,'')==='감독교사');
+    const cT=t[h].findIndex(v=>v.replace(/\s/g,'')==='감독시간');
+    const cOp=t[h].findIndex(v=>/고사운영시간/.test(v.replace(/\s/g,'')));
+    const gm=lastTitle.match(/운영\s*-?\s*([1-3](?:\s*[,·]\s*[1-3])*)\s*학년/);
+    const grades=gm?gm[1].split(/[,·]/).map(x=>x.trim()):['1','2','3'];
+    // 교시별 시험 과목 (예: 1교시 → 국어)
+    const subj={};
+    t.slice(h+1).forEach(r=>{const per=(r[0]||'').replace(/\s/g,'');const w=(r[1]||'').split('\n')[0].trim();if(/\s시험$/.test(w)&&!subj[per])subj[per]=w.replace(/\s*시험$/,'').trim();});
+    const slots=[];const seen=new Set();
+    t.slice(h+1).forEach(r=>{
+      const who=(r[cW]||'').replace(/\s/g,'');if(!who)return;
+      const tm=(r[cT]||'').split('\n').map(x=>x.trim()).filter(Boolean);
+      let time=(tm[0]||'').replace(/\s*\(\d+분간\)/,'').replace(/–/g,'-').trim();
+      const note=tm.slice(1).filter(x=>!/^\(\d+분간\)$/.test(x)).join(' ');
+      const per=(r[0]||'').replace(/\s/g,'');
+      const what=(r[1]||'').split('\n')[0].replace(/\s+/g,' ').replace(/ 시험$/,'').trim();
+      let slot;
+      let m=who.match(/^(\d+)교시담당교사$/);
+      if(m)slot={type:'period',p:+m[1]};
+      else if(/^담임교사$/.test(who))slot={type:'hr'};
+      else if(/담임/.test(who))slot={type:'guide'};
+      else return;
+      if(slot.type!=='period'&&(!time||time===who||/담임/.test(time)))time=(r[cOp]||'').split('\n')[0].trim();
+      slot.time=time;slot.note=note;
+      slot.exam=subj[per]?per+' '+subj[per]:what.replace(/^채\s*점$/,'채점').replace(/^수험생 입실 완료$/,'입실 지도');
+      const key=slot.type+'|'+(slot.p||'')+'|'+slot.time;
+      if(seen.has(key))return;seen.add(key);slots.push(slot);
+    });
+    if(slots.length)groups.push({grades,title:lastTitle,slots});
+  });
+  return groups;
+}
+// 반 c(열 키)의 감독 슬롯 담당 선생님들
+function slotTeachers(colKey,slot){
+  if(slot.type==='period'){const c=B.eff[colKey+'|'+slot.p];return c?names(c.t):[];}
+  const c8=B.eff[colKey+'|8'];
+  if(c8&&c8.role==='담임'&&c8.t)return names(c8.t);
+  const h=(HR[colKey]||{}).hr;return h?[h]:[];
+}
+function gamdokRows(){   // 전체: [{name,time,exam,cls,note,order}]
+  if(!GAMDOK||!B)return [];
+  const out=[];
+  GAMDOK.groups.forEach(g=>{
+    const gs=g.grades.filter(x=>S.grades.includes(x));
+    DATA.cols.filter(c=>!c.room&&gs.includes(c.g)).forEach(col=>{
+      g.slots.forEach((sl,i)=>slotTeachers(col.key,sl).forEach(n=>out.push({name:n,time:sl.time,exam:sl.exam,cls:col.label,note:sl.note,order:i,slot:sl,col})));
+      g.slots.forEach((sl,i)=>{if(!slotTeachers(col.key,sl).length)out.push({name:'',time:sl.time,exam:sl.exam,cls:col.label,note:sl.note,order:i,slot:sl,col});});
+    });
+  });
+  return out;
+}
+const gamdokOf=n=>gamdokRows().filter(r=>r.name===n).sort((a,b)=>a.order-b.order||a.cls.localeCompare(b.cls));
+function gamdokHTML(n){
+  if(!GAMDOK)return '';
+  const rows=gamdokOf(n);
+  return `<div style="margin-top:8px"><b>감독 시간표</b>${rows.length?`<table class="tt" style="margin-top:4px"><tr><th style="width:26%">시간</th><th style="width:26%">고사</th><th style="width:14%">반</th><th>비고</th></tr>`+
+    rows.map(r=>`<tr><td>${esc(r.time)}</td><td>${esc(r.exam)}</td><td><b>${esc(r.cls)}</b></td><td style="font-size:11.5px">${esc(r.note)}</td></tr>`).join('')+'</table>'
+    :'<div class="muted">감독 없음</div>'}</div>`;
+}
+function gamdokSheet(list){
+  const aoa=[['감독 시간표','','','',''],['선생님','시간','고사','반','비고']];
+  list.forEach(n=>{const rows=gamdokOf(n);(rows.length?rows:[{time:'감독 없음',exam:'',cls:'',note:''}]).forEach((r,i)=>aoa.push([i===0?n:'',r.time,r.exam,r.cls,r.note]));});
+  return sheetFrom(aoa,(i,j)=>i===0?xst({sz:14,bold:true,noBorder:true}):i===1||j===0?xst({bold:true,fill:'F1F3F6'}):xst({left:j===4}),
+    [{s:{r:0,c:0},e:{r:0,c:4}}],[10,16,16,7,28],aoa.map((r,i)=>({hpt:i===0?24:20})));
+}
+function drawGamdok(){
+  if(!ADMIN)return;
+  if(!GAMDOK){$('gdStatus').innerHTML='아직 올린 감독시간표가 없어요. 한글에서 <b>다른 이름으로 저장 → HWPX</b>로 저장한 파일을 올려 주세요.';$('gdBox').innerHTML='';return;}
+  $('gdStatus').innerHTML=`✅ <b>${esc(GAMDOK.file)}</b> · ${GAMDOK.groups.map(g=>g.grades.join('·')+'학년').join(' / ')} <span class="muted">(${esc(GAMDOK.saved)})</span> <button class="sm" id="gdDel">지우기</button>`;
+  $('gdDel').onclick=()=>{if(confirm('감독시간표를 지울까요?')){GAMDOK=null;queue('gamdok');render();}};
+  const miss={};
+  gamdokRows().filter(r=>!r.name).forEach(r=>{const k=r.time+' '+r.exam+' ('+(r.slot.type==='period'?r.slot.p+'교시 담당':'담임')+')';(miss[k]=miss[k]||[]).push(r.cls);});
+  $('gdBox').innerHTML=GAMDOK.groups.map(g=>`<div class="rmgroup"><b>${esc(g.title||g.grades.join('·')+'학년')}</b>${S.grades.some(x=>g.grades.includes(x))?'':' <span class="muted">(지금 평가 학년이 아니라 계산 안 함)</span>'}<br>`+
+    g.slots.map(s=>`<span class="chip" style="cursor:default">${esc(s.time)} · ${esc(s.exam)} → ${s.type==='period'?s.p+'교시 담당':s.type==='hr'?'담임':'담임 지도'}</span>`).join('')+'</div>').join('')+
+    (Object.keys(miss).length?`<div class="rmgroup" style="border-color:#fca5a5"><b style="color:var(--no)">감독 선생님이 비어 있는 칸</b><br>`+Object.entries(miss).map(([k,v])=>`${esc(k)}: ${esc(v.join(', '))}`).join('<br>')+
+      `<div class="muted">7교시 담당이 비면 ②에서 7교시 부담임을 켜거나, ④에서 칸에 선생님을 넣어 주세요. 담임이 비면 ①-2 명단을 확인해 주세요.</div></div>`:'<div class="muted">✓ 모든 반의 감독 선생님이 정해졌어요.</div>');
+}
+$('gdUp').onclick=()=>$('gdFile').click();
+$('gdFile').onchange=async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  if(!/\.hwpx$/i.test(f.name)){alert('HWPX 파일만 읽을 수 있어요.\n한글에서 [파일 → 다른 이름으로 저장 → 파일 형식: HWPX]로 저장해서 올려 주세요.');return;}
+  try{
+    const zip=await JSZip.loadAsync(f);
+    const secs=Object.keys(zip.files).filter(n=>/Contents\/section\d+\.xml$/.test(n)).sort();
+    let tables=[];
+    for(const n of secs)tables=tables.concat(hwpxTables(await zip.file(n).async('string')));
+    const groups=parseGamdok(tables);
+    if(!groups.length){alert('감독시간표를 찾지 못했어요. "감독 교사", "감독 시간" 열이 있는 표인지 확인해 주세요.');return;}
+    GAMDOK={file:f.name,saved:new Date().toLocaleString('ko-KR'),groups};
+    queue('gamdok');render();
+    alert(`감독시간표를 읽었어요: ${groups.map(g=>g.grades.join('·')+'학년 '+g.slots.length+'개 시간').join(', ')}`);
+  }catch(err){alert('파일을 읽는 중 오류: '+err.message);}
+};
 
 DATA=load(KEY);
+GAMDOK=load(GKEY);
 HR=load(HKEY)||{};
 S=Object.assign(S,load(SKEY)||{});
 try{PW=localStorage.getItem(PKEY)||''}catch(e){}
