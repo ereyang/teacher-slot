@@ -410,7 +410,7 @@ const maxP=()=>Math.max(...B.P,...DATA.days.map(d=>Math.max(...DATA.periods[d]))
 function personalHTML(n,target){
   const PP=Array.from({length:maxP()},(_,i)=>i+1);
   const cnt=d=>d===S.day?examHours(n):DATA.periods[d].filter(p=>baseAt(n,d,p).length).length;
-  let h=`<table class="tt"><tr><th style="width:40px"></th>${DATA.days.map(d=>`<th class="${d===S.day?'exam':''}">${d}${d===S.day?' (평가)':''}</th>`).join('')}</tr>`;
+  let h=`<table class="tt"><tr><th style="width:40px"></th>${DATA.days.map(d=>`<th class="${d===S.day?'exam':''}">${d}</th>`).join('')}</tr>`;
   PP.forEach(p=>{
     h+=`<tr><th>${p}</th>`;
     DATA.days.forEach(d=>{
