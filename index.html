@@ -377,7 +377,7 @@ function gridHTML(dayList,onlyExam,forPrint){
   const cols=DATA.cols.filter(c=>!onlyExam||S.grades.includes(c.g));
   const gs=[...new Set(cols.map(c=>c.g))];
   let h=`<table class="grid"><colgroup><col style="width:34px"><col style="width:30px">${cols.map(()=>'<col>').join('')}</colgroup>
-    <tr><th rowspan="2">요일</th><th rowspan="2">교시</th>${gs.map(g=>`<th colspan="${cols.filter(c=>c.g===g).length}">${g}학년${S.grades.includes(g)?' (평가)':''}</th>`).join('')}</tr>
+    <tr><th rowspan="2">요일</th><th rowspan="2">교시</th>${gs.map(g=>`<th colspan="${cols.filter(c=>c.g===g).length}">${g}학년${!forPrint&&S.grades.includes(g)?' (평가)':''}</th>`).join('')}</tr>
     <tr>${cols.map(c=>`<th class="${c.room?'room':''}">${c.room?'교과':c.name}</th>`).join('')}</tr>`;
   dayList.forEach(d=>{
     const P=d===S.day?B.P:DATA.periods[d];
@@ -525,9 +525,9 @@ function doPrint(html,landscape){
   $('print').innerHTML=html;setTimeout(()=>window.print(),50);
 }
 const examNote=()=>`학력평가: ${S.day}요일 ${S.grades.join('·')}학년`;
-$('printDay').onclick=()=>doPrint(`<div class="pg"><h3 style="margin:0 0 4px">${S.day}요일 전체 시간표 <span style="font-size:12px;font-weight:normal">(${examNote()})</span></h3>${gridHTML([S.day],S.onlyExam,true)}<div style="margin-top:6px;font-size:11px">${changesHTML()}</div></div>`,true);
-$('printWeek').onclick=()=>doPrint(`<div class="pg"><h3 style="margin:0 0 4px">전체 시간표 <span style="font-size:12px;font-weight:normal">(${examNote()} 반영)</span></h3>${gridHTML(DATA.days,S.onlyExam,true)}</div>`,true);
-const pbox=n=>`<div class="pbox"><h3 style="margin:0 0 4px">${esc(n)} 선생님 시간표 <span style="font-size:12px;font-weight:normal">(${examNote()} 반영)</span></h3>${personalHTML(n)}</div>`;
+$('printDay').onclick=()=>doPrint(`<div class="pg"><h3 style="margin:0 0 4px;text-align:center">전체시간표</h3>${gridHTML([S.day],S.onlyExam,true)}<div style="margin-top:6px;font-size:11px">${changesHTML()}</div></div>`,true);
+$('printWeek').onclick=()=>doPrint(`<div class="pg"><h3 style="margin:0 0 4px;text-align:center">전체시간표</h3>${gridHTML(DATA.days,S.onlyExam,true)}</div>`,true);
+const pbox=n=>`<div class="pbox"><h3 style="margin:0 0 4px;text-align:center">${esc(n)} 선생님 시간표</h3>${personalHTML(n)}</div>`;
 function printTeachers(list){
   if(!list.length){alert('출력할 선생님이 없어요.');return;}
   let h='';for(let i=0;i<list.length;i+=2)h+=`<div class="pg">${list.slice(i,i+2).map(pbox).join('')}</div>`;
@@ -573,7 +573,7 @@ document.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{
   const q=b.dataset.q;
   S.picks=q==='rm'?[...new Set(B.displaced.map(r=>r.name))]:q==='ch'?changedTeachers():q==='all'?allTeachers():[];
   save();drawMulti();});
-$('printMulti').onclick=()=>picked().length?doPrint(`<h3 style="margin:0 0 6px">${S.day}요일 선생님 시간표 <span style="font-size:12px;font-weight:normal">(${examNote()})</span></h3>${multiHTML()}`,true):alert('선생님을 먼저 고르세요.');
+$('printMulti').onclick=()=>picked().length?doPrint(`<h3 style="margin:0 0 6px;text-align:center">${S.day}요일 선생님 시간표</h3>${multiHTML()}`,true):alert('선생님을 먼저 고르세요.');
 
 // ---------- 엑셀 저장 ----------
 const BD={style:'thin',color:{rgb:'999999'}};
