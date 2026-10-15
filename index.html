@@ -599,7 +599,7 @@ function gridSheet(dayList){
   const merges=[{s:{r:0,c:0},e:{r:0,c:W-1}},{s:{r:1,c:0},e:{r:2,c:0}},{s:{r:1,c:1},e:{r:2,c:1}}];
   let ci=2;
   gs.forEach(g=>{const n=cols.filter(c=>c.g===g).length;
-    aoa[1].push(g+'학년'+(S.grades.includes(g)?' (평가)':''),...Array(n-1).fill(''));
+    aoa[1].push(g+'학년',...Array(n-1).fill(''));
     if(n>1)merges.push({s:{r:1,c:ci},e:{r:1,c:ci+n-1}});ci+=n;});
   cols.forEach(c=>aoa[2].push(c.name));
   const edited={};
