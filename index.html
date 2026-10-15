@@ -93,10 +93,19 @@ del{color:var(--no)}
 <style id="pageStyle"></style>
 </head>
 <body>
-<header><h1>학력평가 시간표 교체</h1></header>
+<header><div class="row" style="justify-content:space-between;max-width:1300px;margin:0 auto">
+  <h1 id="appTitle">학력평가 시간표</h1>
+  <div class="row"><span id="sync" style="font-size:13px;opacity:.9"></span>
+    <button id="pwBtn" class="sm" style="display:none">암호 바꾸기</button>
+    <button id="modeBtn" class="sm">🔒 담당자 모드</button></div>
+</div></header>
 <main>
 
-<section class="card">
+<section class="card" id="genInfo" style="display:none">
+  <div id="genText"></div>
+</section>
+
+<section class="card adm" id="upCard">
   <div class="row" style="justify-content:space-between"><h2 style="margin:0">① 전체 시간표 올리기 (월~금)</h2><div class="row"><button id="tplFull">📄 전체시간표 양식</button><button id="tplTeacher">📄 교사시간표 양식</button><button class="primary" id="newSem" style="display:none">🔄 새 시간표 올리기</button></div></div>
   <div class="drop" id="drop" style="margin-top:10px">
     <input type="file" id="file" accept=".xlsx,.xls">
@@ -106,7 +115,7 @@ del{color:var(--no)}
   <p id="status" class="muted" style="margin:10px 0 0"></p>
 </section>
 
-<section class="card need">
+<section class="card need adm">
   <div class="row" style="justify-content:space-between"><h2 style="margin:0">①-2 담임 · 부담임 명단</h2>
     <div class="row"><input type="file" id="hrFile" accept=".xlsx,.xls,.csv" style="display:none">
       <button class="primary" id="hrUp">📤 명단 엑셀 올리기</button><button id="hrTpl">📄 양식 내려받기</button><button id="hrToggle">펼치기</button></div></div>
@@ -114,7 +123,7 @@ del{color:var(--no)}
   <div id="hrBox" style="display:none;margin-top:10px"></div>
 </section>
 
-<section class="card need">
+<section class="card need adm">
   <h2>② 학력평가 요일 · 학년 지정</h2>
   <div class="row">
     <span>요일</span><div class="seg" id="daySeg"></div>
@@ -129,7 +138,7 @@ del{color:var(--no)}
   <p class="muted" style="margin:8px 0 0">평가 학년은 ① <b>교과교실 칸 수업 삭제</b>(그 선생님은 ③에 표시) ② 반 칸의 <b>윗줄 과목명은 모두 자동 삭제</b>, 반에 배정된 선생님은 그대로 남아요.</p>
 </section>
 
-<section class="card need">
+<section class="card need adm">
   <h2>③ 교과교실 수업 삭제로 빠지는 선생님</h2>
   <div id="rmList"></div>
 </section>
@@ -146,7 +155,7 @@ del{color:var(--no)}
       <span class="muted">(엑셀에는 교과교실 열 제외)</span>
     </div>
   </div>
-  <div class="legend muted" style="margin-bottom:6px"><span style="background:repeating-linear-gradient(45deg,#fff,#fff 4px,#fdecec 4px,#fdecec 8px)">교과교실 삭제</span><span style="background:#fffbe6">과목명 삭제됨</span><span style="background:var(--new)">교체함</span><span style="background:#e0f2fe">담임·부담임</span><span style="background:var(--room)">교과교실</span> 칸을 누르면 선생님을 바꿔 넣을 수 있어요.</div>
+  <div class="legend muted adm" style="margin-bottom:6px"><span style="background:repeating-linear-gradient(45deg,#fff,#fff 4px,#fdecec 4px,#fdecec 8px)">교과교실 삭제</span><span style="background:#fffbe6">과목명 삭제됨</span><span style="background:var(--new)">교체함</span><span style="background:#e0f2fe">담임·부담임</span><span style="background:var(--room)">교과교실</span> 칸을 누르면 선생님을 바꿔 넣을 수 있어요.</div>
   <div class="scroll" id="grid"></div>
   <div id="changes" style="margin-top:10px"></div>
 </section>
@@ -210,7 +219,79 @@ const $=id=>document.getElementById(id);
 const DAYSET=['월','화','수','목','금','토'];
 const pad2=n=>String(n).padStart(2,'0');
 const isGroup=s=>/^[A-Z][0-9]$/.test(s);
-const save=()=>store(SKEY,S);
+const save=()=>{store(SKEY,S);queue('state');};
+// ---------- 서버(구글 Apps Script) ----------
+const API='https://script.google.com/macros/s/AKfycbxMtUz4fyUIYHKaAHzin_8TubWSy3WZGtWCzVaF5SxauugeE_ni2deZyxs4mdrkrLZo9Q/exec';
+const PKEY='examSwap.pw';
+const SHARED=['day','grades','edits','hr'];   // 모두가 같이 보는 설정 (onlyExam·picks는 각자)
+let ADMIN=false,PW='',HAS_PW=false,UPDATED='',pending=new Set(),pushTimer=null;
+function setSync(t){$('sync').textContent=t;}
+function queue(...keys){
+  if(!ADMIN)return;
+  keys.forEach(k=>pending.add(k));
+  clearTimeout(pushTimer);pushTimer=setTimeout(push,700);
+  setSync('저장 중…');
+}
+async function push(){
+  if(!ADMIN||!pending.size)return;
+  const set={};
+  pending.forEach(k=>{
+    if(k==='data')set.data=DATA;
+    if(k==='hr')set.hr=HR;
+    if(k==='state'){const o={};SHARED.forEach(x=>o[x]=S[x]);set.state=o;}
+  });
+  pending.clear();
+  try{
+    const r=await fetch(API,{method:'POST',body:JSON.stringify({a:'save',pw:PW,set})}).then(r=>r.json());
+    if(!r.ok)throw new Error(r.msg);
+    UPDATED=r.updated;setSync('✓ 저장됨 '+fmtTime(UPDATED));
+  }catch(e){Object.keys(set).forEach(k=>pending.add(k));setSync('⚠ 저장 실패 — 다시 시도 중');clearTimeout(pushTimer);pushTimer=setTimeout(push,5000);}
+}
+const fmtTime=t=>t?new Date(t).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+async function api(body){return fetch(API,{method:'POST',body:JSON.stringify(body)}).then(r=>r.json());}
+async function loadServer(){
+  try{
+    const r=await fetch(API+'?a=load&t='+Date.now()).then(r=>r.json());
+    HAS_PW=r.hasPw;UPDATED=r.updated;
+    if(r.data){DATA=r.data;store(KEY,DATA);}
+    if(r.state){SHARED.forEach(x=>{if(r.state[x]!==undefined)S[x]=r.state[x];});store(SKEY,S);}
+    if(r.hr){HR=r.hr;store(HKEY,HR);}
+    setSync(UPDATED?'마지막 업데이트 '+fmtTime(UPDATED):'');
+    return r;
+  }catch(e){setSync('⚠ 서버 연결 실패 — 이 기기에 저장된 내용 표시');return null;}
+}
+function setMode(on){
+  ADMIN=on;
+  $('modeBtn').textContent=on?'🔓 담당자 모드 끄기':'🔒 담당자 모드';
+  $('pwBtn').style.display=on?'inline-block':'none';
+  $('appTitle').textContent=on?'학력평가 시간표 교체 (담당자)':'학력평가 시간표';
+  render();
+}
+$('modeBtn').onclick=async()=>{
+  if(ADMIN){try{localStorage.removeItem(PKEY)}catch(e){}PW='';setMode(false);return;}
+  if(!HAS_PW){
+    const a=prompt('처음 사용이에요. 담당자 암호를 정해 주세요 (4자 이상).');if(!a)return;
+    if(prompt('한 번 더 입력해 주세요.')!==a){alert('두 암호가 달라요.');return;}
+    const r=await api({a:'setpw',pw:a});if(!r.ok){alert(r.msg);return;}
+    HAS_PW=true;PW=a;
+  }else{
+    const a=prompt('담당자 암호');if(!a)return;
+    const r=await api({a:'check',pw:a});if(!r.ok){alert(r.msg);return;}
+    PW=a;
+  }
+  try{localStorage.setItem(PKEY,PW)}catch(e){}
+  setMode(true);
+  const r=await loadServer();
+  // 서버가 비어 있고 이 기기에 시간표가 있으면 올려 두기
+  if(r&&!r.data&&DATA)queue('data','state','hr');
+  render();
+};
+$('pwBtn').onclick=async()=>{
+  const a=prompt('새 담당자 암호 (4자 이상)');if(!a)return;
+  if(prompt('한 번 더 입력해 주세요.')!==a){alert('두 암호가 달라요.');return;}
+  const r=await api({a:'chpw',pw:PW,newPw:a});if(!r.ok){alert(r.msg);return;}
+  PW=a;try{localStorage.setItem(PKEY,PW)}catch(e){}alert('암호를 바꿨어요.');
+};
 const names=t=>String(t||'').split(/[,\/·\s]+/).filter(Boolean);
 const colOf=k=>DATA.cols.find(c=>c.key===k);
 
@@ -260,7 +341,7 @@ function readFile(f){
       if(!res){alert('전체시간표를 찾지 못했어요.\n왼쪽에 "요일", "교시" 열, 위쪽에 "1학년…" 줄과 반 번호 줄이 있는지 확인해 주세요.');return;}
       if(DATA&&Object.keys(S.edits).length&&!confirm('새 시간표로 바꿀까요? 지금까지 교체한 내용은 지워져요.'))return;
       res.file=f.name;res.saved=new Date().toLocaleString('ko-KR');
-      DATA=res;store(KEY,DATA);
+      DATA=res;store(KEY,DATA);queue('data','state');
       S.edits={};save();selT=null;
       render();
     }catch(err){alert('파일을 읽는 중 오류: '+err.message)}
@@ -317,12 +398,22 @@ function render(){
   $('status').innerHTML=has
     ?`✅ <b>${esc(DATA.file)}</b> · ${esc(DATA.days.join(''))} · 반 ${DATA.cols.filter(c=>!c.room).length}개 + 교과교실 ${DATA.cols.filter(c=>c.room).length}칸 · 선생님 ${allTeachers().length}명 <span class="muted">(${esc(DATA.saved)} 저장)</span>`
     :'아직 올린 시간표가 없어요.';
-  document.querySelectorAll('.need').forEach(s=>s.style.display=has?'block':'none');
-  if(!has)return;
+  document.querySelectorAll('.need').forEach(el=>el.style.display=has&&(ADMIN||!el.classList.contains('adm'))?'block':'none');
+  $('upCard').style.display=ADMIN?'block':'none';
+  document.querySelectorAll('.legend.adm').forEach(el=>el.style.display=ADMIN?'block':'none');
+  $('genInfo').style.display=ADMIN?'none':'block';
+  if(!has){$('genText').innerHTML='<div class="empty">아직 담당자가 시간표를 올리지 않았어요.</div>';return;}
   if(!DATA.days.includes(S.day))S.day=DATA.days[0];
   build();
+  drawGenInfo();
   drawHR();drawSettings();drawRemoved();drawGrid();drawTList();drawTView();drawMulti();
   if(ED)drawEditor();
+}
+function drawGenInfo(){
+  const o=(S.hr||{})[S.day]||{};
+  const extra=[o[7]?'7교시 부담임':'',o[8]?'8교시 담임':''].filter(Boolean).join(' · ');
+  $('genText').innerHTML=`<div style="font-size:17px"><b>📅 학력평가: ${S.day}요일 ${S.grades.join('·')}학년</b>${extra?' <span class="muted">('+extra+')</span>':''}</div>
+    <div class="muted" style="margin-top:6px">${UPDATED?'마지막 업데이트 '+fmtTime(UPDATED)+' · ':''}④ 바뀐 전체 시간표 보기 · ⑤ 여러 선생님 골라 엑셀/출력 · ⑥ 내 이름 검색해서 개인 시간표 출력</div>`;
 }
 function drawSettings(){
   $('daySeg').innerHTML=DATA.days.map(d=>`<button class="${d===S.day?'on':''}" data-d="${d}">${d}</button>`).join('');
@@ -340,7 +431,7 @@ function drawSettings(){
   S.hr=S.hr||{};S.hr[S.day]=S.hr[S.day]||{};S.hr[S.day][p]=e.target.checked;
   if(e.target.checked&&!Object.keys(HR).length)alert('①-2에서 담임·부담임 명단을 먼저 올리거나 입력해 주세요.');
   save();render();});
-$('onlyExam').onchange=e=>{S.onlyExam=e.target.checked;save();drawGrid();};
+$('onlyExam').onchange=e=>{S.onlyExam=e.target.checked;store(SKEY,S);drawGrid();};
 $('resetAll').onclick=()=>{if(confirm(S.day+'요일 교체 내용을 모두 지울까요?')){delete S.edits[S.day];save();render();}};
 
 function drawRemoved(){
@@ -384,7 +475,7 @@ function gridHTML(dayList,onlyExam,forPrint){
     P.forEach((p,i)=>{
       h+=`<tr>${i===0?`<th rowspan="${P.length}">${d}</th>`:''}<th>${p}</th>`;
       cols.forEach(col=>{const o=cellOut(d,p,col);
-        h+=`<td class="${!forPrint&&d===S.day?'c ':''}${col.room&&!o.cls?'room ':''}${o.cls}" data-k="${col.key}|${p}">${forPrint?o.printHtml:o.html}</td>`;});
+        h+=`<td class="${ADMIN&&!forPrint&&d===S.day?'c ':''}${col.room&&!o.cls?'room ':''}${o.cls}" data-k="${col.key}|${p}">${forPrint?o.printHtml:o.html}</td>`;});
       h+='</tr>';
     });
   });
@@ -566,13 +657,13 @@ function drawMulti(){
   const sel=new Set(S.picks||[]);
   $('multiPick').innerHTML=allTeachers().map(n=>`<span class="chip ${sel.has(n)?'on':''}" data-n="${esc(n)}">${esc(n)}</span>`).join('');
   $('multiPick').querySelectorAll('.chip').forEach(c=>c.onclick=()=>{
-    const n=c.dataset.n;S.picks=sel.has(n)?S.picks.filter(x=>x!==n):[...(S.picks||[]),n];save();drawMulti();});
+    const n=c.dataset.n;S.picks=sel.has(n)?S.picks.filter(x=>x!==n):[...(S.picks||[]),n];store(SKEY,S);drawMulti();});
   $('multi').innerHTML=multiHTML();
 }
 document.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{
   const q=b.dataset.q;
   S.picks=q==='rm'?[...new Set(B.displaced.map(r=>r.name))]:q==='ch'?changedTeachers():q==='all'?allTeachers():[];
-  save();drawMulti();});
+  store(SKEY,S);drawMulti();});
 $('printMulti').onclick=()=>picked().length?doPrint(`<h3 style="margin:0 0 6px;text-align:center">${S.day}요일 선생님 시간표</h3>${multiHTML()}`,true):alert('선생님을 먼저 고르세요.');
 
 // ---------- 엑셀 저장 ----------
@@ -704,7 +795,7 @@ $('hrFile').onchange=e=>{
       wb.SheetNames.forEach(n=>Object.assign(res,parseHR(XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:false,defval:''}))));
       const n=Object.keys(res).length;
       if(!n){alert('명단을 찾지 못했어요.\n"학반 | 담임 | 부담임" (또는 학년 | 반 | 담임 | 부담임) 형식인지 확인해 주세요. 양식을 내려받아 써도 돼요.');return;}
-      HR=res;store(HKEY,HR);
+      HR=res;store(HKEY,HR);queue('hr');
       const known=new Set(allTeachers());
       const unknown=[...new Set(Object.values(HR).flatMap(x=>[x.hr,x.sub]).filter(x=>x&&!known.has(x)))];
       alert(`${n}개 반 명단을 올렸어요.`+(unknown.length?`\n\n※ 시간표에 없는 이름: ${unknown.join(', ')}\n(오타가 아닌지 확인해 주세요)`:''));
@@ -730,7 +821,7 @@ function drawHR(){
   $('hrBox').innerHTML=`<div class="row" style="align-items:flex-start">`+gs.map(g=>`<table class="hrtab"><tr><th>${g}학년</th><th>담임</th><th>부담임</th></tr>`+
     rooms.filter(c=>c.g===g).map(c=>`<tr><td>${c.label}</td><td><input data-k="${c.key}" data-f="hr" value="${esc(HR[c.key]?.hr||'')}"></td><td><input data-k="${c.key}" data-f="sub" value="${esc(HR[c.key]?.sub||'')}"></td></tr>`).join('')+'</table>').join('')+'</div>';
   $('hrBox').querySelectorAll('input').forEach(i=>i.onchange=()=>{
-    const k=i.dataset.k;HR[k]=HR[k]||{hr:'',sub:''};HR[k][i.dataset.f]=cleanName(i.value);store(HKEY,HR);
+    const k=i.dataset.k;HR[k]=HR[k]||{hr:'',sub:''};HR[k][i.dataset.f]=cleanName(i.value);store(HKEY,HR);queue('hr');
     build();drawRemoved();drawGrid();drawTList();drawTView();drawMulti();
     $('hrStatus').innerHTML=`✅ ${homerooms().filter(c=>HR[c.key]&&(HR[c.key].hr||HR[c.key].sub)).length}개 반 / ${homerooms().length}개 반 입력됨 · 펼치면 직접 고칠 수 있어요.`;});
 }
@@ -784,7 +875,13 @@ $('tplTeacher').onclick=()=>XLSX.writeFile(teacherTemplate(),'교사시간표_�
 DATA=load(KEY);
 HR=load(HKEY)||{};
 S=Object.assign(S,load(SKEY)||{});
+try{PW=localStorage.getItem(PKEY)||''}catch(e){}
 render();
+(async()=>{
+  if(PW){const r=await api({a:'check',pw:PW}).catch(()=>null);if(r&&r.ok)ADMIN=true;else PW='';}
+  await loadServer();
+  setMode(ADMIN);
+})();
 </script>
 </body>
 </html>
