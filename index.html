@@ -546,7 +546,7 @@ function drawTList(){
 $('tq').oninput=()=>drawTList();
 function drawTView(){
   if(!selT){$('tview').innerHTML='<div class="empty">선생님을 고르세요.</div>';return;}
-  $('tview').innerHTML=`<div class="row" style="justify-content:space-between;margin-bottom:6px"><b>${esc(selT)} 선생님</b><span class="muted">${ADMIN?S.day+'요일 '+origHours(selT)+'→'+examHours(selT)+'시간':''}</span></div>`+(ADMIN?personalHTML(selT)+gamdokHTML(selT):personalDayHTML(selT));
+  $('tview').innerHTML=`<div class="row" style="justify-content:space-between;margin-bottom:6px"><b>${esc(selT)} 선생님</b><span class="muted">${ADMIN?S.day+'요일 '+origHours(selT)+'→'+examHours(selT)+'시간':''}</span></div>`+(ADMIN?personalHTML(selT)+examScheduleHTML(selT)+gamdokHTML(selT):examScheduleHTML(selT)+personalDayHTML(selT));
 }
 
 // ---------- 칸 편집 ----------
@@ -651,7 +651,7 @@ function personalDayHTML(n){
   rest.filter(r=>r.slot.type!=='guide').forEach(r=>h+=`<tr><th>${r.exam==='채점'?'채점':'담임'}</th><td>${esc(r.cls)}</td><td class="busy">${esc(r.time)}</td><td class="busy">${ex([r])}</td></tr>`);
   return h+'</table>';
 }
-const pbox=n=>`<div class="pbox"><h3 style="margin:0 0 4px;text-align:center">${esc(n)} 선생님 시간표</h3>${ADMIN?personalHTML(n)+gamdokHTML(n):personalDayHTML(n)}</div>`;
+const pbox=n=>`<div class="pbox"><h3 style="margin:0 0 4px;text-align:center">${esc(n)} 선생님 시간표</h3>${ADMIN?personalHTML(n)+examScheduleHTML(n)+gamdokHTML(n):examScheduleHTML(n)+personalDayHTML(n)}</div>`;
 function printTeachers(list){
   if(!list.length){alert('출력할 선생님이 없어요.');return;}
   let h='';for(let i=0;i<list.length;i+=2)h+=`<div class="pg">${list.slice(i,i+2).map(pbox).join('')}</div>`;
@@ -1016,6 +1016,25 @@ function gamdokRows(){   // 전체: [{name,time,exam,cls,note,order}]
   return out;
 }
 const gamdokOf=n=>gamdokRows().filter(r=>r.name===n).sort((a,b)=>a.order-b.order||a.cls.localeCompare(b.cls));
+// 학평 전체 시험 시간표 (평가 학년 묶음별: 1·2학년 / 3학년)
+function examScheduleHTML(n){
+  if(!GAMDOK)return '';
+  let gs=GAMDOK.groups.filter(g=>g.grades.some(x=>S.grades.includes(x)));
+  const mine=new Set(gamdokOf(n).map(r=>r.col.g));
+  if(mine.size){const f=gs.filter(g=>g.grades.some(x=>mine.has(x)));if(f.length)gs=f;}
+  if(!gs.length)return '';
+  const list=g=>{const seen=new Set(),out=[];
+    g.slots.forEach(sl=>{if(!sl.examTime||seen.has(sl.exam))return;seen.add(sl.exam);
+      const ex=rng(sl.examTime);
+      const subs=(g.subs||[]).filter(x=>{const r=rng(x.time);return r&&ex&&r[0]>=ex[0]&&r[1]<=ex[1];});
+      out.push({exam:sl.exam,time:ex?ex[2]:sl.examTime,subs:subs.map(x=>x.name+' '+(rng(x.time)||[0,0,x.time])[2])});});
+    return out;};
+  const cols=gs.map(g=>({g,rows:list(g)}));
+  const exams=[...new Set(cols.flatMap(c=>c.rows.map(r=>r.exam)))];
+  const cell=(c,e)=>{const r=c.rows.find(x=>x.exam===e);return r?`<b>${esc(r.time)}</b>${r.subs.length?'<div class="tag">'+r.subs.map(esc).join('<br>')+'</div>':''}`:'';};
+  return `<div style="margin:4px 0 8px"><b>학평 시험 시간</b><table class="tt" style="margin-top:4px;width:${cols.length>1?'520px':'360px'};max-width:100%"><tr><th style="width:34%">시험</th>${cols.map(c=>`<th>${c.g.grades.join('·')}학년</th>`).join('')}</tr>`+
+    exams.map(e=>`<tr><th>${esc(e)}</th>${cols.map(c=>`<td>${cell(c,e)}</td>`).join('')}</tr>`).join('')+'</table></div>';
+}
 function gamdokHTML(n){
   if(!GAMDOK)return '';
   const rows=gamdokOf(n);
