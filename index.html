@@ -157,10 +157,10 @@ del{color:var(--no)}
     <div class="row">
       <label class="muted"><input type="checkbox" id="onlyExam"> 평가 학년만 보기</label>
       <button class="primary" id="printDay">🖨 이 요일 출력</button>
-      <button id="printWeek">🖨 월~금 전체 출력</button>
+      <button id="printWeek" class="admOnly">🖨 월~금 전체 출력</button>
       <button id="xlsDay">📥 이 요일 엑셀</button>
-      <button id="xlsWeek">📥 월~금 엑셀</button>
-      <span class="muted">(엑셀에는 교과교실 열 제외)</span>
+      <button id="xlsWeek" class="admOnly">📥 월~금 엑셀</button>
+      <span class="muted admOnly">(엑셀에는 교과교실 열 제외)</span>
     </div>
   </div>
   <div class="legend muted adm" style="margin-bottom:6px"><span style="background:repeating-linear-gradient(45deg,#fff,#fff 4px,#fdecec 4px,#fdecec 8px)">교과교실 삭제</span><span style="background:#fffbe6">과목명 삭제됨</span><span style="background:var(--new)">교체함</span><span style="background:#e0f2fe">담임·부담임</span><span style="background:var(--room)">교과교실</span> 칸을 누르면 선생님을 바꿔 넣을 수 있어요.</div>
@@ -168,7 +168,7 @@ del{color:var(--no)}
   <div id="changes" style="margin-top:10px"></div>
 </section>
 
-<section class="card need">
+<section class="card need adm">
   <div class="row" style="justify-content:space-between;margin-bottom:8px">
     <h2 style="margin:0" id="multiTitle">⑤ 평가일 선생님 시간표 모아보기</h2>
     <div class="row">
@@ -411,6 +411,7 @@ function render(){
   document.querySelectorAll('.need').forEach(el=>el.style.display=has&&(ADMIN||!el.classList.contains('adm'))?'block':'none');
   $('upCard').style.display=ADMIN?'block':'none';
   document.querySelectorAll('.legend.adm').forEach(el=>el.style.display=ADMIN?'block':'none');
+  document.querySelectorAll('.admOnly').forEach(el=>el.style.display=ADMIN?'':'none');
   $('genInfo').style.display=ADMIN?'none':'block';
   if(!has){$('genText').innerHTML='<div class="empty">아직 담당자가 시간표를 올리지 않았어요.</div>';return;}
   if(!DATA.days.includes(S.day))S.day=DATA.days[0];
@@ -423,7 +424,7 @@ function drawGenInfo(){
   const o=(S.hr||{})[S.day]||{};
   const extra=[o[7]?'7교시 부담임':'',o[8]?'8교시 담임':''].filter(Boolean).join(' · ');
   $('genText').innerHTML=`<div style="font-size:17px"><b>📅 학력평가: ${S.day}요일 ${S.grades.join('·')}학년</b>${extra?' <span class="muted">('+extra+')</span>':''}</div>
-    <div class="muted" style="margin-top:6px">${UPDATED?'마지막 업데이트 '+fmtTime(UPDATED)+' · ':''}④ 바뀐 전체 시간표 보기 · ⑤ 여러 선생님 골라 엑셀/출력 · ⑥ 내 이름 검색해서 개인 시간표 출력</div>`;
+    <div class="muted" style="margin-top:6px">${UPDATED?'마지막 업데이트 '+fmtTime(UPDATED)+' · ':''}④ 전체 시간표 보기·출력·엑셀 · ⑥ 내 이름 검색해서 개인 시간표 출력</div>`;
 }
 function drawSettings(){
   $('daySeg').innerHTML=DATA.days.map(d=>`<button class="${d===S.day?'on':''}" data-d="${d}">${d}</button>`).join('');
@@ -474,8 +475,8 @@ function cellOut(d,p,col){
   const html=x?`<div class="s">${esc(x.s)}</div>${esc(x.t)}`:'';
   return {cls:'',html,printHtml:html};
 }
-function gridHTML(dayList,onlyExam,forPrint){
-  const cols=DATA.cols.filter(c=>!onlyExam||S.grades.includes(c.g));
+function gridHTML(dayList,onlyExam,forPrint,noRooms){
+  const cols=DATA.cols.filter(c=>(!onlyExam||S.grades.includes(c.g))&&!(noRooms&&c.room));
   const gs=[...new Set(cols.map(c=>c.g))];
   let h=`<table class="grid"><colgroup><col style="width:34px"><col style="width:30px">${cols.map(()=>'<col>').join('')}</colgroup>
     <tr><th rowspan="2">요일</th><th rowspan="2">교시</th>${gs.map(g=>`<th colspan="${cols.filter(c=>c.g===g).length}">${g}학년${!forPrint&&S.grades.includes(g)?' (평가)':''}</th>`).join('')}</tr>
@@ -501,9 +502,9 @@ function changesHTML(){
 }
 function drawGrid(){
   $('gridTitle').textContent=`④ ${S.day}요일 전체 시간표`;
-  $('grid').innerHTML=gridHTML([S.day],S.onlyExam,false);
+  $('grid').innerHTML=ADMIN?gridHTML([S.day],S.onlyExam,false):gridHTML([S.day],S.onlyExam,true,true);
   $('grid').querySelectorAll('td.c').forEach(td=>td.onclick=()=>{const [k,p]=td.dataset.k.split('|');openEditor(k,+p);});
-  $('changes').innerHTML=changesHTML();
+  $('changes').innerHTML=ADMIN?changesHTML():'';
 }
 
 // ---------- 개인 시간표 ----------
@@ -538,14 +539,14 @@ function drawTList(){
   const list=allTeachers().filter(n=>!q||n.includes(q));
   $('tlist2').innerHTML=list.map(n=>{
     const o=origHours(n),c=examHours(n);
-    return `<div class="titem ${n===selT?'sel':''}" data-n="${esc(n)}"><span>${esc(n)}${rm.has(n)?' <span class="badge no">교과교실 삭제</span>':''}</span><span class="muted">${S.day} ${o===c?c:o+'→'+c}시간</span></div>`;
+    return `<div class="titem ${n===selT?'sel':''}" data-n="${esc(n)}"><span>${esc(n)}${ADMIN&&rm.has(n)?' <span class="badge no">교과교실 삭제</span>':''}</span><span class="muted">${ADMIN?S.day+' '+(o===c?c:o+'→'+c)+'시간':''}</span></div>`;
   }).join('')||'<div class="empty">없어요.</div>';
   $('tlist2').querySelectorAll('.titem').forEach(el=>el.onclick=()=>{selT=el.dataset.n;drawTList();drawTView();});
 }
 $('tq').oninput=()=>drawTList();
 function drawTView(){
   if(!selT){$('tview').innerHTML='<div class="empty">선생님을 고르세요.</div>';return;}
-  $('tview').innerHTML=`<div class="row" style="justify-content:space-between;margin-bottom:6px"><b>${esc(selT)} 선생님</b><span class="muted">${S.day}요일 ${origHours(selT)}→${examHours(selT)}시간</span></div>`+personalHTML(selT)+gamdokHTML(selT);
+  $('tview').innerHTML=`<div class="row" style="justify-content:space-between;margin-bottom:6px"><b>${esc(selT)} 선생님</b><span class="muted">${ADMIN?S.day+'요일 '+origHours(selT)+'→'+examHours(selT)+'시간':''}</span></div>`+personalHTML(selT)+gamdokHTML(selT);
 }
 
 // ---------- 칸 편집 ----------
@@ -626,9 +627,14 @@ function doPrint(html,landscape){
   $('print').innerHTML=html;setTimeout(()=>window.print(),50);
 }
 const examNote=()=>`학력평가: ${S.day}요일 ${S.grades.join('·')}학년`;
-$('printDay').onclick=()=>doPrint(`<div class="pg"><h3 style="margin:0 0 4px;text-align:center">전체시간표</h3>${gridHTML([S.day],S.onlyExam,true)}<div style="margin-top:6px;font-size:11px">${changesHTML()}</div></div>`,true);
+$('printDay').onclick=()=>doPrint(`<div class="pg"><h3 style="margin:0 0 4px;text-align:center">전체시간표</h3>${ADMIN?gridHTML([S.day],S.onlyExam,true):gridHTML([S.day],S.onlyExam,true,true)}${ADMIN?`<div style="margin-top:6px;font-size:11px">${changesHTML()}</div>`:''}</div>`,true);
 $('printWeek').onclick=()=>doPrint(`<div class="pg"><h3 style="margin:0 0 4px;text-align:center">전체시간표</h3>${gridHTML(DATA.days,S.onlyExam,true)}</div>`,true);
-const pbox=n=>`<div class="pbox"><h3 style="margin:0 0 4px;text-align:center">${esc(n)} 선생님 시간표</h3>${personalHTML(n)}${gamdokHTML(n)}</div>`;
+// 평가일 하루만: 교시 | 수업
+function personalDayHTML(n){
+  return `<table class="tt"><tr><th style="width:70px">교시</th><th class="exam">${S.day}요일</th></tr>`+
+    B.P.map(p=>{const c=dayCell(n,p);return `<tr><th>${p}교시</th><td class="${c.kind}">${esc(c.text).replace(/\n/g,' ')}</td></tr>`}).join('')+'</table>';
+}
+const pbox=n=>`<div class="pbox"><h3 style="margin:0 0 4px;text-align:center">${esc(n)} 선생님 시간표</h3>${ADMIN?personalHTML(n):personalDayHTML(n)}${gamdokHTML(n)}</div>`;
 function printTeachers(list){
   if(!list.length){alert('출력할 선생님이 없어요.');return;}
   let h='';for(let i=0;i<list.length;i+=2)h+=`<div class="pg">${list.slice(i,i+2).map(pbox).join('')}</div>`;
