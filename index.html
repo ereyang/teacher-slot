@@ -424,7 +424,7 @@ function personalHTML(n,target){
         const changed=!!role||now.some(x=>x.edited)||!o.length||o[0].col.key!==now[0].col.key;
         h+=`<td class="${changed?'new':'busy'}${tg}">${now.map(show).join('<hr style="margin:1px 0">')}${changed?`<div class="tag" style="color:var(--ok)">${role?role.role:'교체'}</div>`:''}</td>`;
       }else if(o.length){
-        h+=`<td class="rm${tg}">${o.map(x=>`<del>${esc(lessonText(x))}</del>`).join('<br>')}<div class="tag">삭제</div></td>`;
+        h+=`<td class="rm${tg}">삭제</td>`;
       }else h+=`<td class="${tg.trim()}"></td>`;
     });
     h+='</tr>';
@@ -550,7 +550,7 @@ function dayCell(n,p){
     const changed=!!role||now.some(x=>x.edited)||!o.length||o[0].col.key!==now[0].col.key;
     return {text:now.map(x=>[where(x),x.s].filter(Boolean).join('\n')).join(' / ')+(changed?`\n(${role?role.role:'교체'})`:''),kind:changed?'new':'busy'};
   }
-  if(o.length)return {text:'삭제\n'+o.map(x=>where(x)).join(', '),kind:'rm'};
+  if(o.length)return {text:'삭제',kind:'rm'};
   return {text:'',kind:''};
 }
 const picked=()=>allTeachers().filter(n=>(S.picks||[]).includes(n));
