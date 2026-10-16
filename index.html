@@ -1037,7 +1037,7 @@ function unifiedDayHTML(n){
   }));
   const allG=new Set(gs.flatMap(g=>g.grades.filter(x=>S.grades.includes(x))));
   const list=[...rows.values()].sort((a,b)=>(a.sl.type==='guide'?-1:toMin(a.sl.time)??9999)-(b.sl.type==='guide'?-1:toMin(b.sl.time)??9999));
-  let h=`<table class="tt" style="width:760px;max-width:100%"><tr><th style="width:17%">시간</th><th style="width:31%">학평 교시</th><th style="width:15%">감독 교시</th><th class="exam">${S.day}요일 내 일정</th></tr>`;
+  let h=`<table class="tt" style="width:760px;max-width:100%"><tr><th style="width:17%">감독 시간</th><th style="width:31%">학평 교시</th><th style="width:15%">감독 교시</th><th class="exam">${S.day}요일 내 일정</th></tr>`;
   list.forEach(o=>{
     const sl=o.sl;
     const gtag=o.grades.size<allG.size&&new Set(o.parts.map(pt=>pt.gg.join())).size===1?` <span class="tag muted">(${[...o.grades].join('·')}학년)</span>`:'';
@@ -1048,7 +1048,7 @@ function unifiedDayHTML(n){
     const role=sl.type==='period'?sl.p+'교시 담당':sl.type==='hr'?'담임':'담임 (입실 지도)';
     const mine=duties.filter(r=>o.slots.includes(r.slot));
     let me='';
-    if(mine.length)me=mine.map(r=>`<b>${esc(r.cls)}</b> 감독${entryHTML(slotDetail(r).entry)}${r.note?'<div class="tag muted">'+esc(r.note)+'</div>':''}`).join('<hr style="margin:1px 0">');
+    if(mine.length)me=mine.map(r=>`<b>${esc(r.cls)}</b> 감독 <b>${esc(r.time.replace(/\s*-\s*/,'~'))}</b>${entryHTML(slotDetail(r).entry)}${r.note?'<div class="tag muted">'+esc(r.note)+'</div>':''}`).join('<hr style="margin:1px 0">');
     else if(sl.type==='period'){const b=busyAt(n,sl.p);if(b.length)me=b.map(x=>esc(lessonText(x))+' 수업').join('<br>');}
     h+=`<tr><td>${esc(sl.time)||'시험 전'}</td><td>${exam}${gtag}</td><td>${role}</td><td class="${me?'new':''}">${me}</td></tr>`;
   });
