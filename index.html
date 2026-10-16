@@ -999,6 +999,8 @@ function slotDetail(r){
   return {examTime:'시험 '+ex[2]+(subs.length?' ('+subs.map(x=>x.name+' '+x.r[2]).join(', ')+')':''),entry:st[0]<=target?(subs.length?subs[0].name+' ':'')+'시험 시작 전 입실':'시험 중 교대 입실'};
 }
 const entryHTML=e=>e?`<div class="tag" style="font-weight:bold;color:${/교대/.test(e)?'#c2410c':'var(--ok)'}">${e}</div>`:'';
+// 채점 줄은 표시하지 않음
+const isScoring=sl=>/^채\s*점$/.test(sl.exam||'');
 // 반 c(열 키)의 감독 슬롯 담당 선생님들
 function slotTeachers(colKey,slot){
   if(slot.type==='period'){const c=B.eff[colKey+'|'+slot.p];return c?names(c.t):[];}
@@ -1012,8 +1014,8 @@ function gamdokRows(){   // 전체: [{name,time,exam,cls,note,order}]
   GAMDOK.groups.forEach(g=>{
     const gs=g.grades.filter(x=>S.grades.includes(x));
     DATA.cols.filter(c=>!c.room&&gs.includes(c.g)).forEach(col=>{
-      g.slots.forEach((sl,i)=>sl.type!=='break'&&slotTeachers(col.key,sl).forEach(n=>out.push({name:n,time:sl.time,exam:sl.exam,cls:col.label,note:sl.note,order:i,slot:sl,col,subs:g.subs||[]})));
-      g.slots.forEach((sl,i)=>{if(sl.type!=='break'&&!slotTeachers(col.key,sl).length)out.push({name:'',time:sl.time,exam:sl.exam,cls:col.label,note:sl.note,order:i,slot:sl,col});});
+      g.slots.forEach((sl,i)=>sl.type!=='break'&&!isScoring(sl)&&slotTeachers(col.key,sl).forEach(n=>out.push({name:n,time:sl.time,exam:sl.exam,cls:col.label,note:sl.note,order:i,slot:sl,col,subs:g.subs||[]})));
+      g.slots.forEach((sl,i)=>{if(sl.type!=='break'&&!isScoring(sl)&&!slotTeachers(col.key,sl).length)out.push({name:'',time:sl.time,exam:sl.exam,cls:col.label,note:sl.note,order:i,slot:sl,col});});
     });
   });
   return out;
@@ -1028,7 +1030,7 @@ function unifiedDayHTML(n){
   if(myG.size){const f=gs.filter(g=>g.grades.some(x=>myG.has(x)));if(f.length)gs=f;}
   if(!gs.length)return personalDayHTML(n);
   const rows=new Map();
-  gs.forEach(g=>g.slots.forEach(sl=>{
+  gs.forEach(g=>g.slots.filter(sl=>!isScoring(sl)).forEach(sl=>{
     const key=sl.type+'|'+(sl.p||'')+'|'+sl.time+'|'+(sl.type==='period'?'':sl.exam);
     if(!rows.has(key))rows.set(key,{sl,g,slots:[],parts:[],grades:new Set()});
     const o=rows.get(key);o.slots.push(sl);
@@ -1096,7 +1098,7 @@ function drawGamdok(){
   const miss={};
   gamdokRows().filter(r=>!r.name).forEach(r=>{const k=r.time+' '+r.exam+' ('+(r.slot.type==='period'?r.slot.p+'교시 담당':'담임')+')';(miss[k]=miss[k]||[]).push(r.cls);});
   $('gdBox').innerHTML=GAMDOK.groups.map(g=>`<div class="rmgroup"><b>${esc(g.title||g.grades.join('·')+'학년')}</b>${S.grades.some(x=>g.grades.includes(x))?'':' <span class="muted">(지금 평가 학년이 아니라 계산 안 함)</span>'}<br>`+
-    g.slots.filter(s=>s.type!=='break').map(s=>`<span class="chip" style="cursor:default">${esc(s.time)} · ${esc(s.exam)} → ${s.type==='period'?s.p+'교시 담당':s.type==='hr'?'담임':'담임 지도'}</span>`).join('')+'</div>').join('')+
+    g.slots.filter(s=>s.type!=='break'&&!isScoring(s)).map(s=>`<span class="chip" style="cursor:default">${esc(s.time)} · ${esc(s.exam)} → ${s.type==='period'?s.p+'교시 담당':s.type==='hr'?'담임':'담임 지도'}</span>`).join('')+'</div>').join('')+
     (Object.keys(miss).length?`<div class="rmgroup" style="border-color:#fca5a5"><b style="color:var(--no)">감독 선생님이 비어 있는 칸</b><br>`+Object.entries(miss).map(([k,v])=>`${esc(k)}: ${esc(v.join(', '))}`).join('<br>')+
       `<div class="muted">7교시 담당이 비면 ②에서 7교시 부담임을 켜거나, ④에서 칸에 선생님을 넣어 주세요. 담임이 비면 ①-2 명단을 확인해 주세요.</div></div>`:'<div class="muted">✓ 모든 반의 감독 선생님이 정해졌어요.</div>');
 }
