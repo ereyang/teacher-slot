@@ -378,6 +378,10 @@ body.mission-mode #snapBtn{display:none}
 <script>
 (function(){
 'use strict';
+/* Where '📸 Snap' sends photos. Paste the Google Apps Script web app address (gas-prep/Code.gs) here:
+   students then need no login, and photos land in the teacher's Google Drive, one folder per class.
+   Left empty, photos go to the claude.ai class album instead (students must be signed in). */
+const PREP_API='';
 const $=s=>document.querySelector(s);
 const PI=Math.PI, W=5, HW=3;
 const WIN={x:2.2,y1:0.95,y2:2.35,w:1.6};
@@ -1644,6 +1648,19 @@ $('#snapSend').addEventListener('click',async()=>{
   if(!who.num||!who.name){setMsg(snapMsg,'Write your number and name. 번호와 이름을 써 주세요.','bad'); return;}
   try{localStorage.setItem('prepRoom.who',JSON.stringify(who));}catch(e){}
   snapBusy=true; $('#snapSend').disabled=true; setMsg(snapMsg,'Sending… 보내는 중이에요…','ok');
+  if(PREP_API){
+    try{
+      const r=await fetch(PREP_API,{method:'POST',body:JSON.stringify({a:'snap',grade:who.grade,cls:who.cls,num:who.num,name:who.name,
+        sentences:freeSentences().slice(-30),img:snapCanvas.toDataURL('image/jpeg',0.85).split(',')[1]})}).then(r=>r.json());
+      if(!r.ok) throw new Error(r.err||'failed');
+      setMsg(snapMsg,'Sent! Your teacher can see it now. 보냈어요! 선생님이 볼 수 있어요.','ok');
+      const sep=document.createElement('li'); sep.className='sep'; sep.textContent='📸 Sent to teacher · 선생님께 보냄'; logEl.prepend(sep);
+    }catch(e){
+      setMsg(snapMsg,"Couldn't send. Check the internet and try again. 보내지 못했어요. 인터넷 연결을 확인하고 다시 눌러 보세요.",'bad');
+      $('#snapSend').disabled=false;
+    }
+    snapBusy=false; return;
+  }
   await capsReady;
   if(!caps.db||!caps.uid){
     setMsg(snapMsg,"Can't send from here. Open the class link while signed in to Claude. 여기서는 보낼 수 없어요. Claude에 로그인한 상태로 수업 링크를 열어 주세요.",'bad');
