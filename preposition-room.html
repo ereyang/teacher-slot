@@ -40,6 +40,7 @@ body{
   padding-right:max(16px, env(safe-area-inset-right, 0px));
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 button{font:inherit;color:inherit}
 .app{
   height:100%; display:grid; grid-template-columns:minmax(0,1fr) 340px;
@@ -193,6 +194,52 @@ body.mission-mode .stage-hint{display:none}
 .mbtns .btn.primary .ko{color:inherit; opacity:.85}
 .log li.sep{border:0; padding:6px 0 0; font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted)}
 
+/* Snap & album */
+.mini.snap{background:var(--accent); color:var(--accent-ink); border-color:var(--accent); font-weight:600}
+body.mission-mode #snapBtn{display:none}
+.modal{position:fixed; inset:0; z-index:20; background:rgba(10,16,24,.55); display:flex; align-items:center; justify-content:center; padding:16px}
+.modal[hidden]{display:none}
+.sheet{
+  background:var(--panel); color:var(--ink); border-radius:16px; width:min(560px,100%); max-height:100%; overflow:auto;
+  padding:16px; box-shadow:0 12px 40px rgba(0,0,0,.3); display:flex; flex-direction:column; gap:12px;
+}
+.sheet h2{margin:0; font:800 20px var(--f-display); display:flex; align-items:baseline; gap:8px}
+.sheet h2 span{font:400 13px var(--f-body); color:var(--muted)}
+.sheet img{width:100%; border-radius:10px; border:1px solid var(--line); display:block}
+.who{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px}
+.who label{display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--muted)}
+.who label.wide{grid-column:span 2}
+.who select,.who input{font:500 16px var(--f-body); color:var(--ink); background:var(--panel); border:1.5px solid var(--line); border-radius:10px; padding:9px 8px; min-width:0}
+.sents{margin:0; padding-left:20px; font-size:14px; max-height:140px; overflow:auto}
+.sents:empty::before{content:"No sentences yet · 아직 문장이 없어요"; color:var(--muted); margin-left:-20px}
+.sheet-btns{display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap}
+.sheet-btns .btn{min-height:44px; justify-content:center; min-width:110px}
+.sheet-btns .btn.primary{background:var(--accent); color:var(--accent-ink); border-color:var(--accent)}
+.sheet-btns .btn.primary .ko{color:inherit; opacity:.85}
+.msg{margin:0; font-size:14px; border-radius:10px; padding:8px 10px}
+.msg[hidden]{display:none}
+.msg.ok{background:var(--ok-bg); color:var(--ok)}
+.msg.bad{background:var(--warn-bg); color:var(--warn)}
+.album{position:fixed; inset:0; z-index:15; background:var(--bg); overflow:auto; padding:16px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px))}
+.album[hidden]{display:none}
+.album-top{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:12px}
+.album-top h2{margin:0; font:800 24px var(--f-display)}
+.album-top h2 span{font:400 14px var(--f-body); color:var(--muted)}
+.tabs{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px}
+.tab{min-height:40px; padding:0 14px; border-radius:999px; border:1px solid var(--line); background:var(--panel); font-weight:600; cursor:pointer}
+.tab[aria-pressed="true"]{background:var(--accent); color:var(--accent-ink); border-color:var(--accent)}
+.grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px}
+.card{background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; cursor:pointer; text-align:left; padding:0; display:flex; flex-direction:column}
+.card img{width:100%; aspect-ratio:900/585; object-fit:cover; display:block; background:var(--scene)}
+.card .meta{padding:8px 10px; display:flex; flex-direction:column; gap:2px}
+.card .nm{font-weight:600}
+.card .sub{font-size:12px; color:var(--muted)}
+.album .empty{padding:24px 0}
+.shots{display:flex; gap:6px; flex-wrap:wrap}
+.shots button{padding:0; border:2px solid transparent; border-radius:8px; overflow:hidden; cursor:pointer; width:96px; background:none}
+.shots button[aria-current="true"]{border-color:var(--accent)}
+.shots img{width:100%; display:block}
+
 @media (max-width: 900px){
   .app{grid-template-columns:minmax(0,1fr); grid-template-rows:auto; height:auto}
   .stage{flex:none; height:58vh; min-height:320px}
@@ -214,6 +261,7 @@ body.mission-mode .stage-hint{display:none}
         <button id="modeFree" type="button" aria-pressed="true">Free<span class="ko">자유</span></button>
         <button id="modeMission" type="button" aria-pressed="false">Mission<span class="ko">미션</span></button>
       </div>
+      <button id="albumBtn" class="btn" type="button" hidden>Class album<span class="ko">반별 앨범</span></button>
       <span class="count" id="count">0 sentences</span>
       <button id="undo" class="btn" type="button" disabled>Undo<span class="ko">되돌리기</span></button>
       <button id="reset" class="btn" type="button">Reset<span class="ko">처음부터</span></button>
@@ -233,6 +281,7 @@ body.mission-mode .stage-hint{display:none}
       <div class="stage-tools">
         <button id="lblToggle" class="mini" type="button" aria-pressed="true">Labels</button>
         <button id="view" class="mini" type="button">Reset view</button>
+        <button id="snapBtn" class="mini snap" type="button">📸 Snap · 찰칵</button>
       </div>
       <button id="targetThumb" class="target" type="button" hidden aria-label="Show the goal picture larger">
         <img id="targetImg" alt="Goal room picture">
@@ -283,6 +332,45 @@ body.mission-mode .stage-hint{display:none}
       <p class="empty" id="logEmpty">Your sentences will show up here. 입력한 문장이 여기에 쌓여요.</p>
     </section>
   </aside>
+</div>
+
+<div id="snapModal" class="modal" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="snapTitle">
+    <h2 id="snapTitle">Send to your teacher <span>선생님께 보내기</span></h2>
+    <img id="snapImg" alt="Photo of your room">
+    <div class="who">
+      <label>Grade 학년<select id="sGrade"></select></label>
+      <label>Class 반<select id="sClass"></select></label>
+      <label>No. 번호<input id="sNum" type="number" inputmode="numeric" min="1" max="60"></label>
+      <label>Name 이름<input id="sName" type="text" maxlength="20" autocomplete="off"></label>
+    </div>
+    <div><b>My sentences</b> <span class="ko">내가 쓴 문장</span><ol class="sents" id="snapSents"></ol></div>
+    <p class="msg" id="snapMsg" hidden></p>
+    <div class="sheet-btns">
+      <button id="snapCancel" class="btn" type="button">Close<span class="ko">닫기</span></button>
+      <button id="snapSend" class="btn primary" type="button">Send<span class="ko">보내기</span></button>
+    </div>
+  </div>
+</div>
+
+<div id="album" class="album" hidden>
+  <div class="album-top">
+    <h2>Class album <span>반별 앨범</span></h2>
+    <button id="albumClose" class="btn" type="button">Close<span class="ko">닫기</span></button>
+  </div>
+  <div class="tabs" id="albumTabs"></div>
+  <div class="grid" id="albumGrid"></div>
+  <p class="empty" id="albumEmpty">No photos yet. Students' photos will show up here. 아직 사진이 없어요. 학생들이 보낸 사진이 여기에 모여요.</p>
+</div>
+
+<div id="shotModal" class="modal" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="shotTitle">
+    <h2 id="shotTitle"></h2>
+    <img id="shotImg" alt="Student room photo">
+    <div class="shots" id="shotList"></div>
+    <div><b>Sentences</b> <span class="ko">문장</span><ol class="sents" id="shotSents"></ol></div>
+    <div class="sheet-btns"><button id="shotClose" class="btn" type="button">Close<span class="ko">닫기</span></button></div>
+  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -1229,7 +1317,7 @@ $('#cmd').addEventListener('submit',e=>{
   let last=null;
   parts.forEach(p=>{
     const res=runSentence(p); addLog(p.replace(/\s+/g,' ')+'.',res); last=res;
-    if(res.ok){okCount++; mCount++; const delay={}; syncAll(delay);}
+    if(res.ok){okCount++; mCount++; if(mode==='free') freeTrail.push(p.replace(/\s+/g,' ')+'.'); const delay={}; syncAll(delay);}
   });
   if(last) showToast(last);
   missionAfterChange();
@@ -1237,10 +1325,10 @@ $('#cmd').addEventListener('submit',e=>{
   renderPreview(); refreshUI();
   if(coarse) input.blur();
 });
-$('#undo').addEventListener('click',()=>{const s=undoStack.pop(); if(!s) return; restore(s); syncAll(); refreshUI(); toastEl.hidden=true; missionAfterChange();});
+$('#undo').addEventListener('click',()=>{const s=undoStack.pop(); if(!s) return; restore(s); if(mode==='free') freeTrail.pop(); syncAll(); refreshUI(); toastEl.hidden=true; missionAfterChange();});
 $('#reset').addEventListener('click',()=>{
   if(mode==='mission'){missionRestart(); return;}
-  undoStack.push(snapshot());
+  undoStack.push(snapshot()); freeTrail.push(null);
   restore(defaultSnap);
   syncAll(); refreshUI(); toastEl.hidden=true;
 });
@@ -1405,10 +1493,11 @@ function shoot(snap){
     g.beginPath(); if(g.roundRect) g.roundRect(x,y,w,h,17); else g.rect(x,y,w,h); g.fill(); g.stroke();
     g.fillStyle=ink; g.fillText(l.t,l.x,y+h/2+1);
   });
-  return out.toDataURL('image/png');
+  return out;
 }
 
 /* Mission state */
+let freeTrail=[];  /* free-mode sentences, one per undo step; null marks a Reset */
 let mode='free', mi=0, mStart=null, mHint=0, mDone=false, mCount=0, freeState=null;
 const cleared=new Set();
 try{(JSON.parse(localStorage.getItem('prepRoom.cleared')||'[]')||[]).forEach(i=>cleared.add(i));}catch(e){}
@@ -1433,7 +1522,7 @@ function loadMission(i){
   const bad=M.goals.filter(g=>!goalMet(g)); if(bad.length) console.warn('Mission',i+1,'answer does not meet:',bad.map(g=>g.en));
   const target=snapshot();
   restore(mStart); undoStack.length=0;
-  const url=shoot(target); $('#targetImg').src=url; $('#targetBigImg').src=url;
+  const url=shoot(target).toDataURL('image/png'); $('#targetImg').src=url; $('#targetBigImg').src=url;
   const sep=document.createElement('li'); sep.className='sep'; sep.textContent=`Mission ${i+1} · ${M.title} (${M.ko})`;
   logEl.prepend(sep); $('#logEmpty').hidden=true;
   toastEl.hidden=true; big.hidden=true;
@@ -1494,11 +1583,11 @@ function setMode(m){
   document.body.classList.toggle('mission-mode',m==='mission');
   $('#missionCard').hidden=thumb.hidden=m!=='mission';
   if(m==='mission'){
-    freeState={snap:snapshot(),undo:undoStack.splice(0)};
+    freeState={snap:snapshot(),undo:undoStack.splice(0),trail:freeTrail.splice(0)};
     loadMission(mi);
   } else {
     big.hidden=true;
-    if(freeState){restore(freeState.snap); undoStack.length=0; undoStack.push(...freeState.undo); freeState=null;}
+    if(freeState){restore(freeState.snap); undoStack.length=0; undoStack.push(...freeState.undo); freeTrail.push(...freeState.trail); freeState=null;}
     const sep=document.createElement('li'); sep.className='sep'; sep.textContent='Free mode (자유 모드)'; logEl.prepend(sep);
     toastEl.hidden=true; syncAll(); refreshUI();
   }
@@ -1514,6 +1603,139 @@ defaultRoom();
 const defaultSnap=snapshot();
 ITEMS.forEach(it=>{const t=targetOf(it), m=it.mesh; m.position.set(t.x,t.y,t.z); m.scale.setScalar(t.s); m.rotation.y=t.r;});
 refreshUI();
+/* ---------- Snap to teacher & class album ----------
+   Each student keeps ONE doc album/<their id> = {grade, cls, num, name, updatedAt, shots:[...]}
+   (rules: only the teacher (editors) reads the album; each student writes only their own doc).
+   A shot holds an asset id when uploads work, else a small JPEG data URL. */
+const MAX_SHOTS=5;
+let caps={db:null,user:null,assets:null,uid:null,editor:false};
+const capsReady=(async()=>{
+  try{
+    const [db,user,assets]=await Promise.all([claude.use('db'),claude.use('user'),claude.use('assets')]);
+    caps.db=db; caps.user=user; caps.assets=assets;
+    if(user){caps.uid=await user.id(); caps.editor=await user.canEdit();}
+    if(caps.editor&&db) $('#albumBtn').hidden=false;
+  }catch(e){}
+})();
+function freeSentences(){const out=[]; for(let i=freeTrail.length-1;i>=0&&freeTrail[i]!==null;i--) out.unshift(freeTrail[i]); return out;}
+const snapModal=$('#snapModal'), snapMsg=$('#snapMsg');
+['sGrade','sClass'].forEach((id,k)=>{const sel=$('#'+id); for(let i=1;i<=(k?15:3);i++){const o=document.createElement('option'); o.value=o.textContent=String(i); sel.appendChild(o);}});
+try{const w=JSON.parse(localStorage.getItem('prepRoom.who')||'null'); if(w){$('#sGrade').value=w.grade; $('#sClass').value=w.cls; $('#sNum').value=w.num||''; $('#sName').value=w.name||'';}}catch(e){}
+let snapCanvas=null, snapBusy=false;
+function setMsg(el,text,cls){el.textContent=text; el.className='msg '+cls; el.hidden=!text;}
+$('#snapBtn').addEventListener('click',()=>{
+  snapCanvas=shoot(snapshot());
+  $('#snapImg').src=snapCanvas.toDataURL('image/jpeg',0.8);
+  const ol=$('#snapSents'); ol.innerHTML='';
+  freeSentences().forEach(t=>{const li=document.createElement('li'); li.textContent=t; ol.appendChild(li);});
+  setMsg(snapMsg,'','');
+  $('#snapSend').disabled=false; snapModal.hidden=false;
+});
+$('#snapCancel').addEventListener('click',()=>{snapModal.hidden=true;});
+snapModal.addEventListener('click',e=>{if(e.target===snapModal) snapModal.hidden=true;});
+function jpegBlob(cv,q){return new Promise(r=>cv.toBlob(r,'image/jpeg',q));}
+function smallDataURL(cv){
+  const c=document.createElement('canvas'); c.width=640; c.height=Math.round(640*cv.height/cv.width);
+  c.getContext('2d').drawImage(cv,0,0,c.width,c.height); return c.toDataURL('image/jpeg',0.7);
+}
+$('#snapSend').addEventListener('click',async()=>{
+  if(snapBusy) return;
+  const who={grade:$('#sGrade').value,cls:$('#sClass').value,num:parseInt($('#sNum').value,10)||0,name:$('#sName').value.trim().slice(0,20)};
+  if(!who.num||!who.name){setMsg(snapMsg,'Write your number and name. 번호와 이름을 써 주세요.','bad'); return;}
+  try{localStorage.setItem('prepRoom.who',JSON.stringify(who));}catch(e){}
+  snapBusy=true; $('#snapSend').disabled=true; setMsg(snapMsg,'Sending… 보내는 중이에요…','ok');
+  await capsReady;
+  if(!caps.db||!caps.uid){
+    setMsg(snapMsg,"Can't send from here. Open the class link while signed in to Claude. 여기서는 보낼 수 없어요. Claude에 로그인한 상태로 수업 링크를 열어 주세요.",'bad');
+    snapBusy=false; $('#snapSend').disabled=false; return;
+  }
+  try{
+    const shot={at:Date.now(),sentences:freeSentences().slice(-30)};
+    let uploaded=false;
+    if(caps.assets){
+      try{const b=await jpegBlob(snapCanvas,0.85); const up=await caps.assets.upload(b,{type:'image/jpeg'}); shot.asset=up.id; uploaded=true;}catch(e){}
+    }
+    if(!uploaded) shot.img=smallDataURL(snapCanvas);
+    const ref=caps.db.doc('album/'+caps.uid);
+    const cur=await ref.get();
+    let shots=(cur.exists&&Array.isArray(cur.data().shots))?cur.data().shots.slice():[];
+    shots.push(shot);
+    shots=shots.slice(-MAX_SHOTS);
+    // keep the doc small: only the newest shot may carry an inline image
+    shots=shots.map((x,i)=>(x.img&&i<shots.length-1)?Object.assign({},x,{img:null}):x);
+    await ref.set(Object.assign({},who,{updatedAt:Date.now(),shots}));
+    setMsg(snapMsg,'Sent! Your teacher can see it now. 보냈어요! 선생님이 볼 수 있어요.','ok');
+    const sep=document.createElement('li'); sep.className='sep'; sep.textContent='📸 Sent to teacher · 선생님께 보냄'; logEl.prepend(sep);
+  }catch(e){
+    const code=e&&e.code;
+    setMsg(snapMsg,code==='invalid_argument'?"You don't have permission to send. Ask your teacher. 보낼 권한이 없어요. 선생님께 말씀드리세요.":"Couldn't send. Try again. 보내지 못했어요. 다시 눌러 보세요.",'bad');
+    $('#snapSend').disabled=false;
+  }
+  snapBusy=false;
+});
+
+/* Teacher's album */
+const albumEl=$('#album'); let albumDocs=[], albumTab=null, albumUnsub=null;
+const shotSrc=x=>x.asset?'/_blob/'+x.asset:(x.img||'');
+const clsKey=d=>`${d.grade}-${d.cls}`;
+function fmtTime(t){try{return new Date(t).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
+function renderAlbum(){
+  const keys=[...new Set(albumDocs.map(clsKey))].sort((a,b)=>{const[x1,y1]=a.split('-').map(Number),[x2,y2]=b.split('-').map(Number); return x1-x2||y1-y2;});
+  if(!keys.includes(albumTab)) albumTab=keys[0]||null;
+  const tabs=$('#albumTabs'); tabs.innerHTML='';
+  keys.forEach(k=>{
+    const b=document.createElement('button'); b.type='button'; b.className='tab';
+    const n=albumDocs.filter(d=>clsKey(d)===k).length;
+    b.textContent=`${k.replace('-','학년 ')}반 (${n})`; b.setAttribute('aria-pressed',String(k===albumTab));
+    b.addEventListener('click',()=>{albumTab=k; renderAlbum();});
+    tabs.appendChild(b);
+  });
+  const grid=$('#albumGrid'); grid.innerHTML='';
+  const list=albumDocs.filter(d=>clsKey(d)===albumTab).sort((a,b)=>(a.num||0)-(b.num||0));
+  $('#albumEmpty').hidden=albumDocs.length>0;
+  list.forEach(d=>{
+    const last=d.shots[d.shots.length-1];
+    const c=document.createElement('button'); c.type='button'; c.className='card';
+    const img=document.createElement('img'); img.alt=`${d.name}'s room`; img.loading='lazy'; img.src=shotSrc(last);
+    const meta=document.createElement('div'); meta.className='meta';
+    const nm=document.createElement('span'); nm.className='nm'; nm.textContent=`${d.num}번 ${d.name}`;
+    const sub=document.createElement('span'); sub.className='sub';
+    sub.textContent=`${(last.sentences||[]).length} sentences · ${fmtTime(last.at)}${d.shots.length>1?` · ${d.shots.length} photos`:''}`;
+    meta.append(nm,sub); c.append(img,meta);
+    c.addEventListener('click',()=>openShot(d,d.shots.length-1));
+    grid.appendChild(c);
+  });
+}
+const shotModal=$('#shotModal');
+function openShot(d,i){
+  const x=d.shots[i];
+  $('#shotTitle').textContent=`${d.grade}-${d.cls} · ${d.num}번 ${d.name}`;
+  $('#shotImg').src=shotSrc(x);
+  const ol=$('#shotSents'); ol.innerHTML='';
+  (x.sentences||[]).forEach(t=>{const li=document.createElement('li'); li.textContent=String(t); ol.appendChild(li);});
+  const sl=$('#shotList'); sl.innerHTML='';
+  if(d.shots.length>1) d.shots.forEach((y,j)=>{
+    const b=document.createElement('button'); b.type='button'; if(j===i) b.setAttribute('aria-current','true');
+    b.setAttribute('aria-label',`Photo ${j+1}, ${fmtTime(y.at)}`);
+    const im=document.createElement('img'); im.alt=''; const src=shotSrc(y); if(src) im.src=src; b.appendChild(im);
+    b.addEventListener('click',()=>openShot(d,j)); sl.appendChild(b);
+  });
+  shotModal.hidden=false;
+}
+$('#shotClose').addEventListener('click',()=>{shotModal.hidden=true;});
+shotModal.addEventListener('click',e=>{if(e.target===shotModal) shotModal.hidden=true;});
+$('#albumBtn').addEventListener('click',()=>{
+  albumEl.hidden=false;
+  if(!albumUnsub&&caps.db){
+    albumUnsub=caps.db.collection('album').onSnapshot(snap=>{
+      albumDocs=snap.docs.map(x=>x.data()).filter(d=>d&&Array.isArray(d.shots)&&d.shots.length);
+      renderAlbum();
+    },()=>{albumUnsub=null;});
+  }
+  renderAlbum();
+});
+$('#albumClose').addEventListener('click',()=>{albumEl.hidden=true;});
+
 window.__prep={MISSIONS,goalMet,loadMission,setMode,runSentence,byId};
 })();
 </script>
