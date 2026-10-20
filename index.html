@@ -1050,7 +1050,7 @@ function unifiedDayHTML(n){
     const role=sl.type==='period'?sl.p+'교시 담당':sl.type==='hr'?'담임':'담임 (입실 지도)';
     const mine=duties.filter(r=>o.slots.includes(r.slot));
     let me='';
-    if(mine.length)me=mine.map(r=>{const e=slotDetail(r).entry;const pick=sl.type==='period'&&sl.p==7&&/^[12]$/.test(String(r.col.g))&&/시작 전 입실/.test(e)?'<div class="tag" style="font-weight:bold">(사탐/과탐 시험지 학년부에서 수령)</div>':'';return `<b>${esc(r.cls)}</b> 감독 <b>${esc(r.time.replace(/\s*-\s*/,'~'))}</b>${entryHTML(e)}${pick}${r.note?'<div class="tag muted">'+esc(r.note)+'</div>':''}`;}).join('<hr style="margin:1px 0">');
+    if(mine.length)me=mine.map(r=>{const e=slotDetail(r).entry;const pk=sl.type==='period'&&/^[12]$/.test(String(r.col.g))?{7:'사탐',8:'과탐'}[sl.p]:'';const pick=pk?'<div class="tag" style="font-weight:bold">('+pk+' 시험지 학년부에서 수령)</div>':'';return `<b>${esc(r.cls)}</b> 감독 <b>${esc(r.time.replace(/\s*-\s*/,'~'))}</b>${entryHTML(e)}${pick}${r.note?'<div class="tag muted">'+esc(r.note)+'</div>':''}`;}).join('<hr style="margin:1px 0">');
     else if(sl.type==='period'){const b=busyAt(n,sl.p);if(b.length)me=b.map(x=>esc(lessonText(x))+' 수업').join('<br>');}
     h+=`<tr><td>${esc(sl.time)||'시험 전'}</td><td>${exam}${gtag}</td><td>${role}</td><td class="${me?'new':''}">${me}</td></tr>`;
   });
